@@ -1,0 +1,18 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "./berust/app/Cargo.toml",
+        "./ferust/app/Cargo.toml",
+        "./common/Cargo.toml",
+        "./berust/app/migration/Cargo.toml",
+        "./berust/app/entity/Cargo.toml"
+    ],
+    "tailwindCSS.experimental.classRegex": ["class: \"(.*)\""],
+    "tailwindCSS.includeLanguages": {
+        "rust": "html"
+    },
+
+
+    // "rust-analyzer.cargo.features": [
+    //     "ssr"
+    // ]
+}

@@ -1,0 +1,18 @@
+FROM rust:latest
+
+ARG USER_ID
+ARG GROUP_ID
+
+RUN addgroup --gid $GROUP_ID service
+RUN adduser --disabled-password --gecos '' --uid $USER_ID --gid $GROUP_ID service
+
+RUN apt-get update && apt-get install -y gdb
+
+USER service
+
+WORKDIR /app
+
+# COPY . .
+
+CMD ["sleep", "infinity"]
+

@@ -1,0 +1,17 @@
+FROM python:3-bookworm
+
+ARG USER_ID
+ARG GROUP_ID
+
+ENV ENVIRONMENT=develop
+
+RUN addgroup --gid $GROUP_ID py
+RUN adduser --disabled-password --gecos '' --uid $USER_ID --gid $GROUP_ID py
+
+COPY /app/requirements.txt /app/requirements.txt
+RUN pip3 install -r /app/requirements.txt
+
+USER py
+
+WORKDIR /app/
+

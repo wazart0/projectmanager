@@ -1,0 +1,36 @@
+.gantt-container {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* .gantt-panel {
+  padding: 1px;
+} */
+
+.left-panel {
+  background-color: #ffffff;
+  height: min-content;
+  min-height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.right-panel {
+  background-color: #ffffff;
+  height: min-content;
+  min-height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.divider {
+  width: 3px;
+  background-color: #ccc;
+  cursor: col-resize;
+  min-height: 100%;
+  border-left: 1px solid #4f4f4f;
+  border-right: 1px solid #4f4f4f;
+}

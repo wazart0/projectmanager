@@ -1,0 +1,21 @@
+.timeline-container {
+  overflow-x: auto;
+  height: fit-content; 
+}
+
+/* .timeline {
+  /* padding-left: 20px;
+  padding-right: 20px; 
+  height: fit-content;
+} */
+
+
+
+
+.timeline-item {
+  position: relative;
+  border-top: 2px solid white;
+  border-bottom: 2px solid white;
+  box-sizing: border-box; /* Ensure border is included within the container's dimensions */
+  /* z-index: 1; */
+}

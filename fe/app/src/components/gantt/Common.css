@@ -1,0 +1,48 @@
+.gantt-row {
+    position: relative;
+    /* box-sizing: border-box;  */
+    /* z-index: 1; */
+    width: 100%;
+    display: flex;  /* Add flex display to align children horizontally */
+    flex-direction: row;  /* Explicitly set direction (this is default, but good for clarity) */
+    border-bottom: 1px solid #cfcfcf;
+}
+
+.gantt-row-empty {
+    position: relative;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    border-bottom: none;
+    padding-bottom: 30px;
+}
+    
+
+
+.gantt-grid-line-vertical {
+    background-color: #cfcfcf;
+    width: 1px;
+    height: 100%;
+}
+
+.gantt-grid-line-horizontal {
+    background-color: #cfcfcf;
+    height: 1px;
+    width: 100%;
+}
+
+.gantt-grid-line-horizontal-dashed {
+    box-sizing: border-box; /* Ensure border is included within the container's dimensions */
+    /* color: #ccc; */
+    border: 0.5px dashed #ccc;
+    height: 1px;
+    width: 100%;
+}
+
+.gantt-grid-line-vertical-dashed {
+    box-sizing: border-box; /* Ensure border is included within the container's dimensions */
+    /* color: #ccc; */
+    border: 0.5px dashed #ccc;
+    width: 1px;
+    height: 100%;
+}

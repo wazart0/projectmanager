@@ -1,0 +1,122 @@
+name: projectmanager
+
+
+x-default-user: &default-user
+  "1000:1000"
+
+x-volumes: &default-volumes
+  - ./:/app:Z
+
+x-logging: &default-logging
+  driver: local
+  options:
+    max-size: "100m"
+
+
+
+
+networks:
+  default:
+    driver: bridge
+
+
+services:
+
+  # berust:
+  #   build:
+  #     context: ./berust/
+  #     dockerfile: Dockerfile.develop
+  #     args:
+  #       - USER_ID=1000
+  #       - GROUP_ID=1000
+  #   user: *default-user
+  #   working_dir: /app/berust/
+  #   entrypoint: sleep infinity
+  #   environment:
+  #     - RUST_BACKTRACE=full
+  #   ports:
+  #     - 22002:80
+  #   volumes:
+  #     *default-volumes
+  #   logging:
+  #     *default-logging
+
+  ferust:
+    build:
+      context: ./ferust/
+      dockerfile: Dockerfile.develop
+      args:
+        - USER_ID=1000
+        - GROUP_ID=1000
+    # user: *default-user
+    working_dir: /app/ferust/
+    entrypoint: sleep infinity
+    environment:
+      # - RUST_BACKTRACE=full
+      - IP=0.0.0.0
+      - PORT=80
+    ports:
+      - 22003:80
+      - 22004:3333
+    volumes:
+      *default-volumes
+    logging:
+      *default-logging
+
+  # be:
+  #   build:
+  #     context: ./be/
+  #     dockerfile: Dockerfile.develop
+  #     args:
+  #       - USER_ID=1000
+  #       - GROUP_ID=1000
+  #   user: *default-user
+  #   working_dir: /app/be/app/src
+  #   entrypoint: uvicorn main:app --reload --host 0.0.0.0 --port 80 --log-level debug
+  #   # entrypoint: sleep infinity
+  #   # entrypoint: sh -c "service ssh start && sleep infinity"
+  #   # command: sh -c "python --version && service ssh start && uvicorn main:app --reload --host 0.0.0.0 --port 20001"
+  #   ports:
+  #     - 22001:80
+  #   env_file:
+  #     - ./be/app/src/.env
+  #   volumes:
+  #     *default-volumes
+  #   logging:
+  #     *default-logging
+
+  # fe:
+  #   build:
+  #     context: ./fe/
+  #     dockerfile: Dockerfile.develop
+  #     args:
+  #       - USER_ID=1000
+  #       - GROUP_ID=1000
+  #   user: *default-user
+  #   working_dir: /app/fe/app/
+  #   entrypoint: npm start
+  #   # entrypoint: sleep infinity
+  #   # entrypoint: sh -c "service ssh start && sleep infinity"
+  #   # entrypoint: sh -c "service ssh start && npm start"
+  #   ports: 
+  #     - 22000:22000
+  #   volumes:
+  #     *default-volumes
+  #   logging:
+  #     *default-logging
+
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: pm
+      POSTGRES_USER: pm
+      POSTGRES_DB: pm
+    ports:
+      - 5432:5432
+    volumes:
+      - ./local/db/postgres:/var/lib/postgresql/data
+    logging:
+      *default-logging
+    
+    

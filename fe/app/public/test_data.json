@@ -1,0 +1,218 @@
+[
+  {
+    "id": 1,
+    "task_name": "Design UI",
+    "start": "2023-06-01T09:00:00",
+    "finish": "2023-06-03T17:00:00",
+    "dependencies": [],
+    "baselines": [
+      {
+        "baseline_name": "Design Kickoff",
+        "start": "2023-06-01T09:00:00",
+        "finish": "2023-06-01T18:00:00"
+      },
+      {
+        "baseline_name": "Design Review",
+        "start": "2023-06-02T11:00:00",
+        "finish": "2023-06-02T14:00:00"  
+      },
+      {
+        "baseline_name": "Design Approved",
+        "start": "2023-06-03T10:00:00",
+        "finish": "2023-06-03T17:00:00"
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "task_name": "Develop Frontend",
+    "start": "2023-06-04T09:00:00",
+    "finish": "2023-06-10T17:00:00",
+    "dependencies": [1],
+    "baselines": [
+      {
+        "baseline_name": "Development Start",
+        "start": "2023-06-04T09:00:00",
+        "finish": "2023-06-04T13:00:00"
+      },
+      {
+        "baseline_name": "50% Complete",
+        "start": "2023-06-07T13:00:00",
+        "finish": "2023-06-07T15:00:00"
+      },
+      {  
+        "baseline_name": "Development Complete",
+        "start": "2023-06-10T10:00:00",
+        "finish": "2023-06-10T17:00:00"
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "task_name": "Develop Backend",
+    "start": "2023-06-04T09:00:00",
+    "finish": "2023-06-12T17:00:00",
+    "dependencies": [1],
+    "baselines": [
+      {
+        "baseline_name": "Backend Kickoff",
+        "start": "2023-06-04T09:00:00",
+        "finish": "2023-06-04T13:00:00"
+      },
+      {
+        "baseline_name": "API Design Complete",
+        "start": "2023-06-07T11:00:00",
+        "finish": "2023-06-07T13:00:00"
+      },
+      {
+        "baseline_name": "Backend Complete",
+        "start": "2023-06-12T09:00:00",
+        "finish": "2023-06-12T17:00:00"
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "task_name": "Integrate Frontend & Backend",
+    "start": "2023-06-13T09:00:00",
+    "finish": "2023-06-15T17:00:00",
+    "dependencies": [2, 3],
+    "baselines": [
+      {
+        "baseline_name": "Integration Start",
+        "start": "2023-06-13T09:00:00",
+        "finish": "2023-06-13T16:00:00"
+      },
+      {
+        "baseline_name": "Data Flow Established",
+        "start": "2023-06-14T11:00:00",
+        "finish": "2023-06-14T13:00:00"
+      },
+      {
+        "baseline_name": "Integration Complete",
+        "start": "2023-06-15T09:00:00",
+        "finish": "2023-06-15T17:00:00"
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "task_name": "Test Frontend",
+    "start": "2023-06-16T09:00:00",
+    "finish": "2023-06-18T17:00:00",
+    "dependencies": [4],
+    "baselines": [
+      {
+        "baseline_name": "Testing Start", 
+        "start": "2023-06-16T09:00:00",
+        "finish": "2023-06-16T15:00:00"
+      },
+      {
+        "baseline_name": "Testing Halfway",
+        "start": "2023-06-17T13:00:00",
+        "finish": "2023-06-17T17:00:00"
+      },
+      {
+        "baseline_name": "Testing Complete",
+        "start": "2023-06-18T10:00:00",
+        "finish": "2023-06-18T17:00:00" 
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "task_name": "Test Backend",
+    "start": "2023-06-16T09:00:00", 
+    "finish": "2023-06-19T17:00:00",
+    "dependencies": [4],
+    "baselines": [
+      {
+        "baseline_name": "Backend Testing Start",
+        "start": "2023-06-16T09:00:00",
+        "finish": "2023-06-16T17:00:00"
+      },
+      {
+        "baseline_name": "50% Test Coverage",
+        "start": "2023-06-17T09:00:00",
+        "finish": "2023-06-17T17:00:00"
+      },
+      {
+        "baseline_name": "All Tests Passing",
+        "start": "2023-06-19T09:00:00",
+        "finish": "2023-06-19T17:00:00"
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "task_name": "User Acceptance Testing",
+    "start": "2023-06-20T09:00:00",
+    "finish": "2023-06-23T17:00:00",
+    "dependencies": [5, 6],
+    "baselines": [
+      {
+        "baseline_name": "UAT Start",
+        "start": "2023-06-20T09:00:00",
+        "finish": "2023-06-20T17:00:00"
+      },
+      {
+        "baseline_name": "50% Scenarios Tested",
+        "start": "2023-06-21T09:00:00",
+        "finish": "2023-06-21T17:00:00"
+      },
+      {
+        "baseline_name": "UAT Complete",
+        "start": "2023-06-23T09:00:00",
+        "finish": "2023-06-23T17:00:00"
+      }
+    ]
+  },
+  {
+    "id": 8,
+    "task_name": "Resolve UAT Issues",
+    "start": "2023-06-24T09:00:00",
+    "finish": "2023-06-26T17:00:00",
+    "dependencies": [7],
+    "baselines": [
+      {
+        "baseline_name": "Issue Resolution Start",
+        "start": "2023-06-24T09:00:00",
+        "finish": "2023-06-24T17:00:00"
+      },
+      {
+        "baseline_name": "Critical Issues Resolved",
+        "start": "2023-06-25T13:00:00",
+        "finish": "2023-06-25T17:00:00"
+      },
+      {
+        "baseline_name": "All Issues Resolved",
+        "start": "2023-06-26T09:00:00",
+        "finish": "2023-06-26T17:00:00"
+      }
+    ]
+  },
+  {
+    "id": 9,
+    "task_name": "Deploy to Production",
+    "start": "2023-06-27T09:00:00",
+    "finish": "2023-06-27T13:00:00",
+    "dependencies": [8],
+    "baselines": [
+      {
+        "baseline_name": "Deployment Start",
+        "start": "2023-06-27T09:00:00",
+        "finish": "2023-06-27T11:00:00"
+      },
+      {
+        "baseline_name": "Pushed to Prod",
+        "start": "2023-06-27T11:00:00",
+        "finish": "2023-06-27T13:00:00"
+      },
+      {
+        "baseline_name": "Deployment Complete",
+        "start": "2023-06-27T13:00:00",
+        "finish": "2023-06-27T17:00:00"
+      }
+    ]
+  }
+]

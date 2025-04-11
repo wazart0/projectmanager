@@ -1,0 +1,11 @@
+uvicorn
+fastapi
+requests
+pytz
+icalendar
+recurring-ical-events
+pandas
+python-dotenv
+debugpy
+ipykernel
+odfpy

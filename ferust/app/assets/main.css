@@ -1,0 +1,148 @@
+/* App-wide styling */
+html,body {
+    background-color: #0f1116;
+    color: #ffffff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0px;
+}
+
+
+
+
+#header {
+    max-width: 1200px;
+    height: 100px;
+}
+
+#hero {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    /* justify-content: center; */
+    align-items: center;
+}
+
+#doublelinks {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
+@media (max-width: 500px) {
+    #header {
+        height: 200px;
+    }
+    #doublelinks {
+        flex-direction: column;
+    }
+}
+
+#links1 {
+    height: calc(100vh - 100px);
+    width: 300px;
+    text-align: left;
+    font-size: x-large;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    overflow: scroll;
+}
+
+#links1 a {
+    color: white;
+    text-decoration: none;
+    margin-top: 20px;
+    margin: 10px 0px;
+    border: white 1px solid;
+    border-radius: 5px;
+    padding: 10px;
+}
+
+#links1 a:hover {
+    background-color: #1f1f1f;
+    cursor: pointer;
+}
+
+#links2 {
+    height: calc(100vh - 100px);
+    width: 300px;
+    text-align: left;
+    font-size: x-large;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    overflow: scroll;
+}
+
+#links2 a {
+    color: white;
+    text-decoration: none;
+    margin-top: 20px;
+    margin: 10px 0px;
+    border: white 1px solid;
+    border-radius: 5px;
+    padding: 10px;
+}
+
+#links2 a:hover {
+    background-color: #1f1f1f;
+    cursor: pointer;
+}
+
+
+
+/* CSS */
+
+.grid {
+    display: grid;
+    grid-template-columns: 0.2fr 1fr;
+    grid-template-rows: 1fr 4fr;
+    grid-gap: 3px;
+    position: relative;
+}
+
+.left {
+    grid-row: 1 / span 2;
+}
+
+.right_top {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.right_bottom {
+    grid-column: 2;
+    grid-row: 2;
+}
+
+.left_inner {
+    background-color: #fedcd2;
+    padding: 0;
+    width: 100%;
+    min-width: 100%;
+    height: 100%;
+    min-height: 100%;
+    text-align: center;
+}
+
+.right_top_inner {
+    background-color: #f9cf00;
+    padding: 0;
+    width: 100%;
+    min-width: 100%;
+    height: 100%;
+    min-height: 100%;
+    text-align: center;
+}
+
+.right_bottom_inner {
+    background-color: #f8eee7;
+    padding: 0;
+    width: 100%;
+    min-width: 100%;
+    height: 100%;
+    min-height: 100%;
+    text-align: center;
+}

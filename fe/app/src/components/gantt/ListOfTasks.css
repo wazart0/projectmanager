@@ -1,0 +1,42 @@
+.list-of-tasks-container {
+  overflow-x: auto;
+  min-height: 100%; /* Take full height of parent */
+}
+
+.list-of-tasks {
+  display: flex;
+  flex-direction: column;
+  width: fit-content;
+}
+
+.list-of-tasks-body {
+  display: flex;
+  flex-direction: row;
+  width: fit-content;
+}
+
+.list-of-tasks-column {
+  display: flex;
+  flex-direction: column;
+  width: fit-content;
+  border-right: 0.5px solid #cfcfcf;
+}
+
+.list-of-tasks-column-empty {
+  display: flex;
+  flex-direction: column;
+  width: auto;
+  min-width: 50px;
+}
+
+
+.list-of-tasks-cell {
+  width: fit-content;
+  box-sizing: border-box; /* Ensure border is included within the container's dimensions */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  white-space: nowrap; /* Prevent text from wrapping */
+  padding-right: 5px;
+  padding-left: 5px;
+}

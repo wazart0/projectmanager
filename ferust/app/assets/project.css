@@ -1,0 +1,68 @@
+
+#project {
+    
+}
+
+#toolbar {
+    display: flex;
+    flex-direction: row;
+    width: 100vw;
+    height: 2rem;
+    align-items: center;
+}
+
+#left_view {
+    position: absolute;
+    left: 0vw;
+    top: 2rem;
+    height: calc(100vh - 2rem);
+    width: 20vw;
+    overflow: scroll;
+}
+
+#view_splitter {
+    position: absolute;
+    left: 20vw;
+    top: 2rem;
+    height: calc(100vh - 2rem);
+    width: .20vw;
+    background-color: #d9d9d9;
+}
+
+#right_view {
+    position: absolute;
+    left: 20.2vw;
+    top: 2rem;
+    height: calc(100vh - 2rem);
+    width: 79.8vw;
+    overflow: scroll;
+}
+
+
+.gantt_table {
+
+    display: grid;
+    grid-auto-rows: 1.5rem;
+    grid-auto-columns: minmax(2rem, fit-content);
+    /* gap: 0.25rem; */
+
+    .item {
+        /* min-height: 1.5rem;
+        max-height: 1.5rem;
+        min-width: 2rem; */
+    }
+}
+
+.gantt_chart {
+    display: grid;
+    grid-auto-rows: 1.5rem;
+    /* gap: 0.25rem; */
+}
+
+.gantt_chart_row {
+    /* display: flex;
+    flex-direction: row; */
+    min-height: 1.5rem;
+    max-height: 1.5rem;
+    /* position: relative; */
+}
