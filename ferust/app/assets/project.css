@@ -39,7 +39,7 @@
 }
 
 
-.gantt_table {
+.table {
 
     display: grid;
     grid-auto-rows: 1.5rem;

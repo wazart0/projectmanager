@@ -53,6 +53,7 @@ services:
     entrypoint: sleep infinity
     environment:
       # - RUST_BACKTRACE=full
+      - DATABASE_URL=postgres://pm:pm@db:5432/pm
       - IP=0.0.0.0
       - PORT=80
     ports:
@@ -119,4 +120,15 @@ services:
     logging:
       *default-logging
     
-    
+  pgadmin:
+    image: dpage/pgadmin4
+    ports:
+      - 5050:80
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ad@ad.com
+      PGADMIN_DEFAULT_PASSWORD: ad
+    volumes:
+      - ./pgadmin_develop.json:/pgadmin4/servers.json
+    logging:
+      *default-logging
+

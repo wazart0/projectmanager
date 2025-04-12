@@ -1,0 +1,16 @@
+{
+    "Servers": {
+        "1": {
+            "Name": "PM Server",
+            "Group": "Server Group 1",
+            "Port": 5432,
+            "Username": "pm",
+            "Host": "db",
+            "MaintenanceDB": "pm",
+            "ConnectionParameters": {
+                "sslmode": "prefer",
+                "connect_timeout": 10
+            }
+        }
+    }
+}

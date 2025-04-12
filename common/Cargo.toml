@@ -8,7 +8,8 @@ serde = { version = "1.0.219", features = ["derive"] }
 bitcode = "0.6.5"
 
 [lib]
-path = "models.rs"
+name = "common"
+path = "src/lib.rs"
 
 
 

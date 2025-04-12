@@ -184,7 +184,7 @@ fn sync_scroll(component: GanttComponent) {
 
 
 
-fn get_cell_value(task: &common::models::Task, column: &str) -> String {
+fn get_task_cell_value(task: &common::models::Task, column: &str) -> String {
     match column {
         "id" => task.id.to_string(),
         "wbs" => task.wbs.clone(),
@@ -221,6 +221,56 @@ fn get_cell_value(task: &common::models::Task, column: &str) -> String {
     }
 }
 
+
+fn get_resource_cell_value(resource: &common::models::Resource, column: &str, resource_types: &Vec<common::models::ResourceType>) -> String {
+    match column {
+        "resource_id" => resource.resource_id.to_string(),
+        "name" => resource.name.clone(),
+        "resource_type_id" => {
+            let resource_type = resource_types.iter().find(|rt| rt.resource_type_id == resource.resource_type_id).unwrap();
+            resource_type.name.clone()
+        },
+        "description" => match &resource.description {
+            Some(description) => description.clone(),
+            None => "".to_string(),
+        },
+        "comment" => match &resource.comment {
+            Some(comment) => comment.clone(),
+            None => "".to_string(),
+        },
+        "cost" => match &resource.cost {
+            Some(cost) => cost.to_string(),
+            None => "".to_string(),
+        },
+        "cost_currency" => resource.cost_currency.clone(),
+        "billing_frequency" => match &resource.billing_frequency {
+            Some(billing_frequency) => billing_frequency.to_string(),
+            None => "".to_string(),
+        },
+        "billing_interval" => match &resource.billing_interval {
+            Some(billing_interval) => billing_interval.to_string(),
+            None => "".to_string(),
+        },
+        "availability" => match &resource.availability {
+            Some(availability) => availability.clone(),
+            None => "".to_string(),
+        },
+        "capacity" => match &resource.capacity {
+            Some(capacity) => capacity.to_string(),
+            None => "".to_string(),
+        },
+        "capacity_unit" => match &resource.capacity_unit {
+            Some(capacity_unit) => capacity_unit.clone(),
+            None => "".to_string(),
+        },
+        "is_active" => resource.is_active.to_string(),
+        _ => panic!("Invalid column: {}", column),
+    }
+}
+
+
+
+
 #[derive(Debug, PartialEq)]
 enum View {
     Gantt,
@@ -233,7 +283,8 @@ enum View {
 fn Project() -> Element {
     let mut view = use_signal(|| View::Gantt);
     let mut signal_tasks = use_signal(|| Vec::new());
-    let mut signal_team: Signal<Vec<common::models::TeamMember>> = use_signal(|| Vec::new());
+    let mut signal_resources: Signal<Vec<common::models::Resource>> = use_signal(|| Vec::new());
+    let mut signal_resource_types: Signal<Vec<common::models::ResourceType>> = use_signal(|| Vec::new());
     let mut splitter_position = use_signal(|| 50.);
     
     use_future(move || async move {
@@ -241,13 +292,23 @@ fn Project() -> Element {
             &reqwest::get("http://localhost:22004/tasks")
             .await.unwrap().bytes().await.unwrap()).unwrap());
     });
-    // use_future(move || async move {
-    //     signal_team.set(bitcode::decode(
-    //         &reqwest::get("http://localhost:22004/team")
-    //         .await.unwrap().bytes().await.unwrap()).unwrap());
-    // });
 
+    let fetch_tasks = move |_| async move {
+        view.set(View::Gantt);
+        signal_tasks.set(bitcode::decode(
+            &reqwest::get("http://localhost:22004/tasks")
+            .await.unwrap().bytes().await.unwrap()).unwrap());
+    };
 
+    let fetch_resources = move |_| async move {
+        let (resources, resource_types) = bitcode::decode(
+            &reqwest::get("http://localhost:22004/resources")
+            .await.unwrap().bytes().await.unwrap()).unwrap();
+
+        view.set(View::Resources);
+        signal_resources.set(resources);
+        signal_resource_types.set(resource_types);
+    };
 
     rsx! {
         div {
@@ -255,11 +316,11 @@ fn Project() -> Element {
             div {
                 id: "toolbar",
                 button {
-                    onclick: move |_| view.set(View::Gantt),
+                    onclick: fetch_tasks,
                     "Gantt"
                 }
                 button {
-                    onclick: move |_| view.set(View::Resources),
+                    onclick: fetch_resources,
                     "Resources"
                 }
                 button {
@@ -294,10 +355,16 @@ fn Project() -> Element {
             if *view.read() == View::Resources {
                 div {
                     id: "resources",
-                    for (row, team_member) in signal_team.read().clone().into_iter().enumerate() {
-                        div {
-                            style: "grid-row: {(row+1).to_string()};",
-                            "{team_member.user_name} {team_member.user_last_name}"
+                    class: "table",
+
+                    for (row, resource) in signal_resources.read().clone().into_iter().enumerate() {
+                        {info!("Resource: {:?}", resource);}
+                        for (column_index, column) in common::models::RESOURCE_COLUMNS.iter().enumerate() {
+                            div { 
+                                class: "item",
+                                style: "grid-row: {(row+1).to_string()}; grid-column: {(column_index+1).to_string()};",
+                                "{get_resource_cell_value(&resource, column, &signal_resource_types.read())}"
+                            }
                         }
                     }
                 }
@@ -315,14 +382,14 @@ fn Project() -> Element {
                         },
                         
                         div {
-                            class: "gantt_table",
+                            class: "table",
 
                             for (row, task) in signal_tasks.read().clone().into_iter().enumerate() {
                                 for (column_index, column) in common::models::COLUMNS.iter().enumerate() {
                                     div { 
                                         class: "item",
                                         style: "grid-row: {(row+1).to_string()}; grid-column: {(column_index+1).to_string()};",
-                                        "{get_cell_value(&task, column)}"
+                                        "{get_task_cell_value(&task, column)}"
                                     }
                                 }
                             }

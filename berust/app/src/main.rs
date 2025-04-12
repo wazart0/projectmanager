@@ -1,6 +1,5 @@
 use axum::{routing::get, Router, response::{Response, IntoResponse, Json}, http::StatusCode, extract::State};
-use sea_orm::{Database, DatabaseConnection, Statement, ConnectionTrait};
-use sea_orm::EntityTrait;
+use sea_orm::{Database, DatabaseConnection, Statement, ConnectionTrait, EntityTrait};
 use migration::{Migrator, MigratorTrait};
 use serde_json::{json, Value};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -10,12 +9,8 @@ use std::fs;
 use tower_http::cors::{Any, CorsLayer};
 
 
-use common;
+use common::*;
 use entity::*;
-
-const DB_CONNECTION_STRING: &str = "postgres://pm:pm@db:5432/pm";
-
-
 
 
 
@@ -25,8 +20,15 @@ async fn main() {
         .with_max_level(tracing::Level::DEBUG)
         .init();
 
+    // Read database connection string from environment variable
+    let db_connection_string = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| {
+            error!("DATABASE_URL environment variable not set, using default");
+            std::process::exit(1);
+        });
+
     // Initialize database connection
-    let db_connection = Database::connect(DB_CONNECTION_STRING)
+    let db_connection = Database::connect(db_connection_string)
         .await
         .unwrap_or_else(|e| {
             error!("Failed to create DB connection: {}", e);
@@ -73,7 +75,7 @@ async fn main() {
         .route("/health", get(health_check))
         .route("/tasks", get(get_list_of_tasks))
         .route("/project", get(get_project_info))
-        .route("/team-members", get(get_team_members))
+        .route("/resources", get(get_resources))
         .layer(cors)
         .with_state(db_connection);  // Add database connection to application state
         
@@ -103,7 +105,7 @@ async fn health_check(State(db): State<DatabaseConnection>) -> Json<Value> {
             })
         },
         Err(err) => {
-            error!("Database health check failed: {}", err);
+            warn!("Database health check failed: {}", err);
             json!({
                 "status": "disconnected",
                 "error": err.to_string()
@@ -141,7 +143,7 @@ impl IntoResponse for MyError {
             MyError::DatabaseError => "Server error: Database operation failed",
         };
 
-        tracing::error!("{}, {}", StatusCode::INTERNAL_SERVER_ERROR, body);
+        error!("{}, {}", StatusCode::INTERNAL_SERVER_ERROR, body);
         (StatusCode::INTERNAL_SERVER_ERROR, body).into_response()
     }
 }
@@ -221,25 +223,88 @@ async fn get_project_info() -> Vec<u8> {
 //     Html(dioxus_ssr::render(&app))
 // }
 
+
+
+// Define a local trait for frequency conversion
+trait IntoModelFrequency {
+    fn into_model_frequency(self) -> models::Frequency;
+}
+
+// Implement the trait for resources::Frequency
+impl IntoModelFrequency for resources::Frequency {
+    fn into_model_frequency(self) -> models::Frequency {
+        match self {
+            resources::Frequency::Monthly => models::Frequency::Monthly,
+            resources::Frequency::Weekly => models::Frequency::Weekly,
+            resources::Frequency::Daily => models::Frequency::Daily,
+            resources::Frequency::Hourly => models::Frequency::Hourly,
+            resources::Frequency::Minutely => models::Frequency::Minutely,
+            resources::Frequency::Secondly => models::Frequency::Secondly,
+            resources::Frequency::Yearly => models::Frequency::Yearly,
+        }
+    }
+}
+
+
+trait IntoModelResource {
+    fn into_model_resource(self) -> common::models::Resource;
+}
+
+impl IntoModelResource for resources::Model {
+    fn into_model_resource(self) -> common::models::Resource {
+        common::models::Resource {
+            resource_id: self.resource_id,
+            name: self.name,
+            resource_type_id: self.resource_type_id,
+            description: self.description,
+            comment: self.comment,
+            cost: self.cost,
+            cost_currency: self.cost_currency,
+            billing_frequency: self.billing_frequency.map(|f| f.into_model_frequency()),
+            billing_interval: self.billing_interval,
+            availability: self.availability,
+            capacity: self.capacity,
+            capacity_unit: self.capacity_unit,
+            is_active: self.is_active,
+        }
+    }
+}
+
+trait IntoModelResourceType {
+    fn into_model_resource_type(self) -> common::models::ResourceType;
+}
+
+impl IntoModelResourceType for resource_types::Model {
+    fn into_model_resource_type(self) -> common::models::ResourceType {
+        common::models::ResourceType {
+            resource_type_id: self.resource_type_id,
+            name: self.name,
+            description: self.description,
+            comment: self.comment,
+        }
+    }
+}
+
 // New function to get team members from the database using SeaORM
-async fn get_team_members(State(db): State<DatabaseConnection>) -> Result<Json<Vec<common::models::TeamMember>>, MyError> {
+async fn get_resources(State(db): State<DatabaseConnection>) -> Result<Vec<u8>, MyError> {
     // Use the SeaORM query builder
-    let team_members = team_members::Entity::find()
+    let resources = resources::Entity::find()
+        .all(&db)
+        .await
+        .map_err(|_| MyError::DatabaseError)?;
+    let resource_types = resource_types::Entity::find()
         .all(&db)
         .await
         .map_err(|_| MyError::DatabaseError)?;
     
     // Convert from SeaORM model to the application model
-    let team_members = team_members.into_iter()
-        .map(|record| common::models::TeamMember {
-            user_id: record.user_id,
-            user_name: record.user_name,
-            user_last_name: record.user_last_name,
-            position: record.position,
-            comment: record.comment,
-        })
+    let resources: Vec<common::models::Resource> = resources.into_iter()
+        .map(|record| record.into_model_resource())
+        .collect();
+    let resource_types: Vec<common::models::ResourceType> = resource_types.into_iter()
+        .map(|record| record.into_model_resource_type())
         .collect();
     
-    Ok(Json(team_members))
+    Ok(bitcode::encode(&(resources, resource_types)))
 }
 
