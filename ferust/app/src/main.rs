@@ -275,6 +275,7 @@ fn get_resource_cell_value(resource: &common::models::Resource, column: &str, re
 enum View {
     Gantt,
     Resources,
+    Reporting,
     Reports,
     Settings,
 }
@@ -316,28 +317,39 @@ fn Project() -> Element {
             div {
                 id: "toolbar",
                 button {
+                    class: "button",
                     onclick: fetch_tasks,
                     "Gantt"
                 }
                 button {
+                    class: "button",
                     onclick: fetch_resources,
                     "Resources"
                 }
                 button {
+                    class: "button",
+                    onclick: move |_| view.set(View::Reporting),
+                    "Reporting"
+                }
+                button {
+                    class: "button",
                     onclick: move |_| view.set(View::Reports),
                     "Reports"
                 }
                 button {
+                    class: "button",
                     onclick: move |_| view.set(View::Settings),
                     "Settings"
                 }
                 span { " | " }
                 if *view.read() == View::Gantt {
                     button {
+                        class: "button",
                         onclick: move |_| splitter_position.set(100.),
                         "Table"
                     }
                     button {
+                        class: "button",
                         onclick: move |_| splitter_position.set(0.),
                         "Gantt"
                     }
@@ -358,7 +370,6 @@ fn Project() -> Element {
                     class: "table",
 
                     for (row, resource) in signal_resources.read().clone().into_iter().enumerate() {
-                        {info!("Resource: {:?}", resource);}
                         for (column_index, column) in common::models::RESOURCE_COLUMNS.iter().enumerate() {
                             div { 
                                 class: "item",
@@ -372,70 +383,70 @@ fn Project() -> Element {
 
 
             if *view.read() == View::Gantt {
+                div {
+                    id: "left_view",
+                    onscroll: move |_| sync_scroll(GanttComponent::Table),
+                    style: match *splitter_position.read() {
+                        x if x > 98. => "width: 100vw;".to_string(),
+                        x if x < 2. => "display: none;".to_string(),
+                        x => format!("width: {}vw;", x),
+                    },
+                    
                     div {
-                        id: "left_view",
-                        onscroll: move |_| sync_scroll(GanttComponent::Table),
-                        style: match *splitter_position.read() {
-                            x if x > 98. => "width: 100vw;".to_string(),
-                            x if x < 2. => "display: none;".to_string(),
-                            x => format!("width: {}vw;", x),
-                        },
-                        
-                        div {
-                            class: "table",
+                        class: "table",
 
-                            for (row, task) in signal_tasks.read().clone().into_iter().enumerate() {
-                                for (column_index, column) in common::models::COLUMNS.iter().enumerate() {
-                                    div { 
-                                        class: "item",
-                                        style: "grid-row: {(row+1).to_string()}; grid-column: {(column_index+1).to_string()};",
-                                        "{get_task_cell_value(&task, column)}"
-                                    }
+                        for (row, task) in signal_tasks.read().clone().into_iter().enumerate() {
+                            for (column_index, column) in common::models::COLUMNS.iter().enumerate() {
+                                div { 
+                                    class: "item",
+                                    style: "grid-row: {(row+1).to_string()}; grid-column: {(column_index+1).to_string()};",
+                                    "{get_task_cell_value(&task, column)}"
                                 }
                             }
                         }
                     }
-                    div { 
-                        id: "view_splitter",
-                        style: match *splitter_position.read() {
-                            x if 2. <= x && x <= 98. => format!("left: {}vw;", x), 
-                            _ => "display: none;".to_string(),
-                        }
+                }
+                div { 
+                    id: "view_splitter",
+                    style: match *splitter_position.read() {
+                        x if 2. <= x && x <= 98. => format!("left: {}vw;", x), 
+                        _ => "display: none;".to_string(),
                     }
+                }
+                div {
+                    id: "right_view",
+                    onscroll: move |_| sync_scroll(GanttComponent::Chart),
+                    style: match *splitter_position.read() {
+                        x if x < 2. => "width: 100vw; left: 0vw;".to_string(),
+                        x if x > 98. => "display: none;".to_string(),
+                        x => format!("left: {}vw; width: {}vw;", x + 0.2, 99.8 - x),
+                    },
                     div {
-                        id: "right_view",
-                        onscroll: move |_| sync_scroll(GanttComponent::Chart),
-                        style: match *splitter_position.read() {
-                            x if x < 2. => "width: 100vw; left: 0vw;".to_string(),
-                            x if x > 98. => "display: none;".to_string(),
-                            x => format!("left: {}vw; width: {}vw;", x + 0.2, 99.8 - x),
-                        },
-                        div {
-                            class: "gantt_chart",
+                        class: "gantt_chart",
 
-                            for (row, task) in signal_tasks.read().clone().into_iter().enumerate() {
-                                div {
-                                    // class: "gantt_chart_row",
-                                    style: "grid-row: {(row+1).to_string()};",
-                                    width: "100rem",
-                                    if task.begin_month.is_some() && task.end_month.is_some() {
-                                        div {
-                                            width: ((task.end_month.unwrap() - task.begin_month.unwrap())* 100 / 29).to_string() + "rem",
-                                            left: (task.begin_month.unwrap() * 100 / 29).to_string() + "rem",
-                                            style: "background-color: green; position: relative; height: 100%; 
-                                            box-sizing: border-box; border-bottom: 0.2rem solid black; border-top: 0.2rem solid black;",
-                                        }
-                                    } else {
-                                        div { style: "position: relative; height: 100%;" }
+                        for (row, task) in signal_tasks.read().clone().into_iter().enumerate() {
+                            div {
+                                class: "item",
+                                style: "grid-row: {(row+1).to_string()};",
+                                width: "100rem",
+                                if task.begin_month.is_some() && task.end_month.is_some() {
+                                    div {
+                                        width: ((task.end_month.unwrap() - task.begin_month.unwrap())* 100 / 29).to_string() + "rem",
+                                        left: (task.begin_month.unwrap() * 100 / 29).to_string() + "rem",
+                                        style: "background-color: green; position: relative; height: 100%; 
+                                        box-sizing: border-box; border-bottom: 0.2rem solid black; border-top: 0.2rem solid black;",
                                     }
-                                    // div {
-                                    //     style: "position: relative; height: 100%; z-index: 10; left: 10rem",
-                                    //     "{task.name}"
-                                    // }
+                                } else {
+                                    div { style: "position: relative; height: 100%;" }
                                 }
+                                // div {
+                                //     style: "position: relative; height: 100%; z-index: 10; left: 10rem",
+                                //     "{task.name}"
+                                // }
                             }
                         }
                     }
+                }
                 
 
             }

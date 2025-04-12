@@ -3,7 +3,7 @@ use sea_orm::{Database, DatabaseConnection, Statement, ConnectionTrait, EntityTr
 use migration::{Migrator, MigratorTrait};
 use serde_json::{json, Value};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
-use tracing::{info, error, warn, debug, trace};
+use tracing::{info, error, warn};
 // use dioxus::prelude::*;
 use std::fs;
 use tower_http::cors::{Any, CorsLayer};

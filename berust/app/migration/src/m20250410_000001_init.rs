@@ -1,5 +1,5 @@
 use sea_orm_migration::prelude::*;
-use sea_orm::{DatabaseBackend, Statement};
+use sea_orm::{DatabaseBackend, Statement, EntityTrait, Set};
 use tracing::error;
 use std::process::exit;
 
@@ -64,12 +64,6 @@ impl MigrationTrait for Migration {
 
         manager
             .create_table(
-                schema.create_table_from_entity(team_members::Entity)
-            )
-            .await?;
-
-        manager
-            .create_table(
                 schema.create_table_from_entity(resource_types::Entity)
             )
             .await?;
@@ -81,20 +75,30 @@ impl MigrationTrait for Migration {
                 )
             ).await?;
         }
-        db.execute(
-            Statement::from_sql_and_values(
-                db.get_database_backend(),
-                    r#"INSERT INTO resource_types (name) VALUES ($1), ($2), ($3), ($4), ($5)"#,
-                    [
-                        "Human".into(),
-                        "Material".into(),
-                        "Equipment".into(),
-                        "Service".into(),   
-                        "Other".into(),
-                    ]
-                )
-            )
-            .await?;
+        resource_types::Entity::insert_many([
+            resource_types::ActiveModel {
+                name: Set("Human".to_string()),
+                ..Default::default()
+            },
+            resource_types::ActiveModel {
+                name: Set("Material".to_string()),
+                ..Default::default()
+            },
+            resource_types::ActiveModel {
+                name: Set("Equipment".to_string()),
+                ..Default::default()
+            },
+            resource_types::ActiveModel {
+                name: Set("Service".to_string()),
+                ..Default::default()
+            },
+            resource_types::ActiveModel {
+                name: Set("Other".to_string()),
+                ..Default::default()
+            },
+        ])
+        .exec(db)
+        .await?;
 
         manager
             .create_table(
@@ -110,7 +114,104 @@ impl MigrationTrait for Migration {
             ).await?;
         }
 
-        
+        manager
+            .create_table(
+                schema.create_table_from_entity(baselines::Entity)
+            )
+            .await?;
+        for statement in default_id_statement("baselines", "baseline_id") {
+            db.execute(
+                Statement::from_string(
+                    db.get_database_backend(),
+                    statement
+                )
+            ).await?;
+        }
+
+        manager
+            .create_type(
+                extension::postgres::Type::create()
+                    .as_enum(Alias::new("task_status"))
+                    .values([
+                        Alias::new("ToDo"), 
+                        Alias::new("InProgress"), 
+                        Alias::new("Done"), 
+                        Alias::new("Cancelled")
+                    ])
+                    .to_owned()
+            )
+            .await?;
+        manager
+            .create_table(
+                schema.create_table_from_entity(tasks::Entity)
+            )
+            .await?;    
+        for statement in default_id_statement("tasks", "task_id") {
+            db.execute(
+                Statement::from_string(
+                    db.get_database_backend(),
+                    statement
+                )
+            ).await?;
+        }
+
+        manager
+            .create_table(
+                schema.create_table_from_entity(tasks_baselines::Entity)
+            )
+            .await?;
+        for statement in default_id_statement("tasks_baselines", "task_baseline_id") {
+            db.execute(
+                Statement::from_string(
+                    db.get_database_backend(),
+                    statement
+                )
+            ).await?;
+        }
+
+        manager
+            .create_table(
+                schema.create_table_from_entity(config::Entity)
+            )
+            .await?;
+        for statement in default_id_statement("config", "config_id") {
+            db.execute(
+                Statement::from_string(
+                    db.get_database_backend(),
+                    statement
+                )
+            ).await?;
+        }
+
+        baselines::Entity::insert_many([
+            baselines::ActiveModel {
+                baseline_id: Set(1),
+                name: Set("Default".to_string()),
+                ..Default::default()
+            },
+            baselines::ActiveModel {
+                baseline_id: Set(2),
+                name: Set("Current".to_string()),
+                ..Default::default()
+            },
+        ])
+        .exec(db)
+        .await?;
+
+        config::Entity::insert_many([
+            config::ActiveModel {
+                config_key: Set("baseline_id_default".to_string()),
+                config_value: Set("1".to_string()),
+                ..Default::default()
+            },
+            config::ActiveModel {
+                config_key: Set("baseline_id_current".to_string()),
+                config_value: Set("2".to_string()),
+                ..Default::default()
+            },
+        ])
+        .exec(db)
+        .await?;
 
         Ok(())
     }
