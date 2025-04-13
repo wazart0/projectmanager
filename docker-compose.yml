@@ -54,10 +54,8 @@ services:
     environment:
       # - RUST_BACKTRACE=full
       - DATABASE_URL=postgres://pm:pm@db:5432/pm
-      - IP=0.0.0.0
-      - PORT=80
     ports:
-      - 22003:80
+      - 22003:8080
       - 22004:3333
     volumes:
       *default-volumes

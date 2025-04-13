@@ -1,11 +1,10 @@
 use dioxus::prelude::*;
-use tracing::*;
+// use tracing::*;
 // use log::info;
 // use serde_json;
 // mod camino;
 
 // mod models;
-use common;
 
 // mod server;
 // use crate::server::{get_list_of_tasks, get_project_info};
@@ -21,7 +20,6 @@ enum Route {
     Project {},
 }
 
-
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 const HEADER_SVG: Asset = asset!("/assets/header.svg");
@@ -35,42 +33,42 @@ fn main() {
 fn App() -> Element {
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
-        document::Link { rel: "stylesheet", href: MAIN_CSS } 
+        document::Link { rel: "stylesheet", href: MAIN_CSS }
         document::Link { rel: "stylesheet", href: TAILWIND_CSS }
         document::Link { rel: "stylesheet", href: PROJECT_CSS }
         Router::<Route> {}
     }
 }
 
-
-
 #[component]
 pub fn Hero() -> Element {
-    
     rsx! {
 
-        {tracing::info!("Hero component rendered");}
+        {
+            tracing::info!("Hero component rendered");
+        }
 
-        div {
-            id: "hero",
+        div { id: "hero",
             img { src: HEADER_SVG, id: "header" }
             div { id: "doublelinks",
-                div { 
-                    id: "links1",
+                div { id: "links1",
                     a { href: "https://dioxuslabs.com/learn/0.6/", "📚 Learn Dioxus" }
                     a { href: "https://dioxuslabs.com/awesome", "🚀 Awesome Dioxus" }
                     a { href: "https://github.com/dioxus-community/", "📡 Community Libraries" }
                     a { href: "https://github.com/DioxusLabs/sdk", "⚙️ Dioxus Development Kit" }
-                    a { href: "https://marketplace.visualstudio.com/items?itemName=DioxusLabs.dioxus", "💫 VSCode Extension" }
+                    a { href: "https://marketplace.visualstudio.com/items?itemName=DioxusLabs.dioxus",
+                        "💫 VSCode Extension"
+                    }
                     a { href: "https://discord.gg/XgGxMSkvUM", "👋 Community Discord" }
                 }
-                div { 
-                    id: "links2",
+                div { id: "links2",
                     a { href: "https://dioxuslabs.com/learn/0.6/", "📚 Learn Dioxus" }
                     a { href: "https://dioxuslabs.com/awesome", "🚀 Awesome Dioxus" }
                     a { href: "https://github.com/dioxus-community/", "📡 Community Libraries" }
                     a { href: "https://github.com/DioxusLabs/sdk", "⚙️ Dioxus Development Kit" }
-                    a { href: "https://marketplace.visualstudio.com/items?itemName=DioxusLabs.dioxus", "💫 VSCode Extension" }
+                    a { href: "https://marketplace.visualstudio.com/items?itemName=DioxusLabs.dioxus",
+                        "💫 VSCode Extension"
+                    }
                     a { href: "https://discord.gg/XgGxMSkvUM", "👋 Community Discord" }
                 }
             }
@@ -91,21 +89,15 @@ fn Home() -> Element {
 #[component]
 pub fn Blog(id: i32) -> Element {
     rsx! {
-        div {
-            id: "blog",
+        div { id: "blog",
 
             // Content
-            h1 { 
-                class: "text-2xl 2xl:text-4xl",
-                "This is blog #{id}!" 
-            }
-            p { 
-                style: "font-size: 1.5rem; 2xl:font-size: 2rem;",
-                "In blog #{id}, we show how the Dioxus router works and how URL parameters can be passed as props to our route components." 
+            h1 { class: "text-2xl 2xl:text-4xl", "This is blog #{id}!" }
+            p { style: "font-size: 1.5rem; 2xl:font-size: 2rem;",
+                "In blog #{id}, we show how the Dioxus router works and how URL parameters can be passed as props to our route components."
             }
 
-            div {
-                class: "flex justify-center items-center",
+            div { class: "flex justify-center items-center",
                 a {
                     class: "text-blue-500",
                     href: "https://dioxuslabs.com/learn/0.6/",
@@ -114,15 +106,9 @@ pub fn Blog(id: i32) -> Element {
             }
 
             // Navigation links
-            Link {
-                to: Route::Blog { id: id - 1 },
-                "Previous"
-            }
+            Link { to: Route::Blog { id: id - 1 }, "Previous" }
             span { " <---> " }
-            Link {
-                to: Route::Blog { id: id + 1 },
-                "Next"
-            }
+            Link { to: Route::Blog { id: id + 1 }, "Next" }
         }
     }
 }
@@ -130,8 +116,8 @@ pub fn Blog(id: i32) -> Element {
 /// Echo component that demonstrates fullstack server functions.
 #[component]
 fn Tasks() -> Element {
-    let mut tasks = use_signal(|| String::new());
-    let mut project_info = use_signal(|| String::new());
+    let mut tasks = use_signal(String::new);
+    let mut project_info = use_signal(String::new);
     use_future(move || async move {
         let response = String::new(); //get_list_of_tasks().await.unwrap();
         tasks.set(response);
@@ -141,10 +127,8 @@ fn Tasks() -> Element {
         project_info.set(response);
     });
 
-
     rsx! {
-        div {
-            id: "echo",
+        div { id: "echo",
             h4 { "List of tasks" }
 
             {tasks}
@@ -152,13 +136,6 @@ fn Tasks() -> Element {
         }
     }
 }
-
-
-
-
-
-
-
 
 enum GanttComponent {
     Table,
@@ -168,21 +145,23 @@ enum GanttComponent {
 fn sync_scroll(component: GanttComponent) {
     match component {
         GanttComponent::Table => {
-            document::eval(r#"
+            document::eval(
+                r#"
                 document.getElementById("right_view").scrollTop = 
                     document.getElementById("left_view").scrollTop;
-            "#);
+            "#,
+            );
         }
         GanttComponent::Chart => {
-            document::eval(r#"
+            document::eval(
+                r#"
                 document.getElementById("left_view").scrollTop = 
                     document.getElementById("right_view").scrollTop;
-            "#);
+            "#,
+            );
         }
     }
 }
-
-
 
 fn get_task_cell_value(task: &common::models::Task, column: &str) -> String {
     match column {
@@ -221,15 +200,21 @@ fn get_task_cell_value(task: &common::models::Task, column: &str) -> String {
     }
 }
 
-
-fn get_resource_cell_value(resource: &common::models::Resource, column: &str, resource_types: &Vec<common::models::ResourceType>) -> String {
+fn get_resource_cell_value(
+    resource: &common::models::Resource,
+    column: &str,
+    resource_types: &[common::models::ResourceType],
+) -> String {
     match column {
         "resource_id" => resource.resource_id.to_string(),
         "name" => resource.name.clone(),
         "resource_type_id" => {
-            let resource_type = resource_types.iter().find(|rt| rt.resource_type_id == resource.resource_type_id).unwrap();
+            let resource_type = resource_types
+                .iter()
+                .find(|rt| rt.resource_type_id == resource.resource_type_id)
+                .unwrap();
             resource_type.name.clone()
-        },
+        }
         "description" => match &resource.description {
             Some(description) => description.clone(),
             None => "".to_string(),
@@ -268,9 +253,6 @@ fn get_resource_cell_value(resource: &common::models::Resource, column: &str, re
     }
 }
 
-
-
-
 #[derive(Debug, PartialEq)]
 enum View {
     Gantt,
@@ -283,28 +265,50 @@ enum View {
 #[component]
 fn Project() -> Element {
     let mut view = use_signal(|| View::Gantt);
-    let mut signal_tasks = use_signal(|| Vec::new());
-    let mut signal_resources: Signal<Vec<common::models::Resource>> = use_signal(|| Vec::new());
-    let mut signal_resource_types: Signal<Vec<common::models::ResourceType>> = use_signal(|| Vec::new());
+    let mut signal_tasks = use_signal(Vec::new);
+    let mut signal_resources: Signal<Vec<common::models::Resource>> = use_signal(Vec::new);
+    let mut signal_resource_types: Signal<Vec<common::models::ResourceType>> = use_signal(Vec::new);
     let mut splitter_position = use_signal(|| 50.);
-    
+
     use_future(move || async move {
-        signal_tasks.set(bitcode::decode(
-            &reqwest::get("http://localhost:22004/tasks")
-            .await.unwrap().bytes().await.unwrap()).unwrap());
+        signal_tasks.set(
+            bitcode::decode(
+                &reqwest::get("http://localhost:22004/tasks")
+                    .await
+                    .unwrap()
+                    .bytes()
+                    .await
+                    .unwrap(),
+            )
+            .unwrap(),
+        );
     });
 
     let fetch_tasks = move |_| async move {
         view.set(View::Gantt);
-        signal_tasks.set(bitcode::decode(
-            &reqwest::get("http://localhost:22004/tasks")
-            .await.unwrap().bytes().await.unwrap()).unwrap());
+        signal_tasks.set(
+            bitcode::decode(
+                &reqwest::get("http://localhost:22004/tasks")
+                    .await
+                    .unwrap()
+                    .bytes()
+                    .await
+                    .unwrap(),
+            )
+            .unwrap(),
+        );
     };
 
     let fetch_resources = move |_| async move {
         let (resources, resource_types) = bitcode::decode(
             &reqwest::get("http://localhost:22004/resources")
-            .await.unwrap().bytes().await.unwrap()).unwrap();
+                .await
+                .unwrap()
+                .bytes()
+                .await
+                .unwrap(),
+        )
+        .unwrap();
 
         view.set(View::Resources);
         signal_resources.set(resources);
@@ -312,20 +316,10 @@ fn Project() -> Element {
     };
 
     rsx! {
-        div {
-            id: "project",
-            div {
-                id: "toolbar",
-                button {
-                    class: "button",
-                    onclick: fetch_tasks,
-                    "Gantt"
-                }
-                button {
-                    class: "button",
-                    onclick: fetch_resources,
-                    "Resources"
-                }
+        div { id: "project",
+            div { id: "toolbar",
+                button { class: "button", onclick: fetch_tasks, "Gantt" }
+                button { class: "button", onclick: fetch_resources, "Resources" }
                 button {
                     class: "button",
                     onclick: move |_| view.set(View::Reporting),
@@ -354,7 +348,7 @@ fn Project() -> Element {
                         "Gantt"
                     }
                     input {
-                        type: "range",
+                        r#type: "range",
                         min: "0",
                         max: "100",
                         value: splitter_position.read().to_string(),
@@ -362,16 +356,13 @@ fn Project() -> Element {
                     }
                 }
             }
-            
 
             if *view.read() == View::Resources {
-                div {
-                    id: "resources",
-                    class: "table",
+                div { id: "resources", class: "table",
 
-                    for (row, resource) in signal_resources.read().clone().into_iter().enumerate() {
-                        for (column_index, column) in common::models::RESOURCE_COLUMNS.iter().enumerate() {
-                            div { 
+                    for (row , resource) in signal_resources.read().clone().into_iter().enumerate() {
+                        for (column_index , column) in common::models::RESOURCE_COLUMNS.iter().enumerate() {
+                            div {
                                 class: "item",
                                 style: "grid-row: {(row+1).to_string()}; grid-column: {(column_index+1).to_string()};",
                                 "{get_resource_cell_value(&resource, column, &signal_resource_types.read())}"
@@ -391,13 +382,11 @@ fn Project() -> Element {
                         x if x < 2. => "display: none;".to_string(),
                         x => format!("width: {}vw;", x),
                     },
-                    
-                    div {
-                        class: "table",
+                    div { class: "table",
 
-                        for (row, task) in signal_tasks.read().clone().into_iter().enumerate() {
-                            for (column_index, column) in common::models::COLUMNS.iter().enumerate() {
-                                div { 
+                        for (row , task) in signal_tasks.read().clone().into_iter().enumerate() {
+                            for (column_index , column) in common::models::COLUMNS.iter().enumerate() {
+                                div {
                                     class: "item",
                                     style: "grid-row: {(row+1).to_string()}; grid-column: {(column_index+1).to_string()};",
                                     "{get_task_cell_value(&task, column)}"
@@ -406,12 +395,12 @@ fn Project() -> Element {
                         }
                     }
                 }
-                div { 
+                div {
                     id: "view_splitter",
                     style: match *splitter_position.read() {
-                        x if 2. <= x && x <= 98. => format!("left: {}vw;", x), 
+                        x if (2.0..98.0).contains(&x) => format!("left: {}vw;", x),
                         _ => "display: none;".to_string(),
-                    }
+                    },
                 }
                 div {
                     id: "right_view",
@@ -421,38 +410,33 @@ fn Project() -> Element {
                         x if x > 98. => "display: none;".to_string(),
                         x => format!("left: {}vw; width: {}vw;", x + 0.2, 99.8 - x),
                     },
-                    div {
-                        class: "gantt_chart",
+                    div { class: "gantt_chart",
 
-                        for (row, task) in signal_tasks.read().clone().into_iter().enumerate() {
+                        for (row , task) in signal_tasks.read().clone().into_iter().enumerate() {
                             div {
                                 class: "item",
                                 style: "grid-row: {(row+1).to_string()};",
                                 width: "100rem",
                                 if task.begin_month.is_some() && task.end_month.is_some() {
                                     div {
-                                        width: ((task.end_month.unwrap() - task.begin_month.unwrap())* 100 / 29).to_string() + "rem",
+                                        width: ((task.end_month.unwrap() - task.begin_month.unwrap()) * 100 / 29).to_string()
+                                            + "rem",
                                         left: (task.begin_month.unwrap() * 100 / 29).to_string() + "rem",
-                                        style: "background-color: green; position: relative; height: 100%; 
+                                        style: "background-color: green; position: relative; height: 100%;
                                         box-sizing: border-box; border-bottom: 0.2rem solid black; border-top: 0.2rem solid black;",
                                     }
                                 } else {
                                     div { style: "position: relative; height: 100%;" }
                                 }
-                                // div {
-                                //     style: "position: relative; height: 100%; z-index: 10; left: 10rem",
-                                //     "{task.name}"
-                                // }
+                                                        // div {
+                            //     style: "position: relative; height: 100%; z-index: 10; left: 10rem",
+                            //     "{task.name}"
+                            // }
                             }
                         }
                     }
                 }
-                
-
             }
         }
     }
 }
-
-
-

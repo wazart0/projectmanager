@@ -1,18 +1,21 @@
-use axum::{routing::get, Router, response::{Response, IntoResponse, Json}, http::StatusCode, extract::State};
-use sea_orm::{Database, DatabaseConnection, Statement, ConnectionTrait, EntityTrait};
+use axum::{
+    extract::State,
+    http::StatusCode,
+    response::{IntoResponse, Json, Response},
+    routing::get,
+    Router,
+};
 use migration::{Migrator, MigratorTrait};
+use sea_orm::{ConnectionTrait, Database, DatabaseConnection, EntityTrait, Statement};
 use serde_json::{json, Value};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
-use tracing::{info, error, warn};
+use tracing::{error, info, warn};
 // use dioxus::prelude::*;
 use std::fs;
 use tower_http::cors::{Any, CorsLayer};
 
-
 use common::*;
 use entity::*;
-
-
 
 #[tokio::main]
 async fn main() {
@@ -21,11 +24,10 @@ async fn main() {
         .init();
 
     // Read database connection string from environment variable
-    let db_connection_string = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| {
-            error!("DATABASE_URL environment variable not set, using default");
-            std::process::exit(1);
-        });
+    let db_connection_string = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+        error!("DATABASE_URL environment variable not set, using default");
+        std::process::exit(1);
+    });
 
     // Initialize database connection
     let db_connection = Database::connect(db_connection_string)
@@ -36,10 +38,13 @@ async fn main() {
         });
 
     // Verify database connection
-    match db_connection.execute(Statement::from_string(
-        db_connection.get_database_backend(),
-        "SELECT 1".to_owned(),
-    )).await {
+    match db_connection
+        .execute(Statement::from_string(
+            db_connection.get_database_backend(),
+            "SELECT 1".to_owned(),
+        ))
+        .await
+    {
         Ok(_) => info!("Database connection verified"),
         Err(e) => {
             error!("Failed to connect to database: {}", e);
@@ -69,7 +74,7 @@ async fn main() {
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any);
-        
+
     // Build the application with routes and middleware
     let app = Router::new()
         .route("/health", get(health_check))
@@ -77,8 +82,8 @@ async fn main() {
         .route("/project", get(get_project_info))
         .route("/resources", get(get_resources))
         .layer(cors)
-        .with_state(db_connection);  // Add database connection to application state
-        
+        .with_state(db_connection); // Add database connection to application state
+
     axum::serve(listener, app).await.unwrap_or_else(|e| {
         error!("Server error: {}", e);
         std::process::exit(1);
@@ -91,19 +96,22 @@ async fn health_check(State(db): State<DatabaseConnection>) -> Json<Value> {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    
+
     // Check database connectivity
-    let db_status = match db.execute(Statement::from_string(
-        db.get_database_backend(),
-        "SELECT 1 as connected".to_owned(),
-    )).await {
+    let db_status = match db
+        .execute(Statement::from_string(
+            db.get_database_backend(),
+            "SELECT 1 as connected".to_owned(),
+        ))
+        .await
+    {
         Ok(_) => {
             let db_ping_us = start.elapsed().as_micros();
             json!({
                 "status": "connected",
                 "ping_us": db_ping_us
             })
-        },
+        }
         Err(err) => {
             warn!("Database health check failed: {}", err);
             json!({
@@ -112,10 +120,14 @@ async fn health_check(State(db): State<DatabaseConnection>) -> Json<Value> {
             })
         }
     };
-    
+
     // Overall service status depends on database status
-    let service_status = if db_status["status"] == "connected" { "healthy" } else { "degraded" };
-    
+    let service_status = if db_status["status"] == "connected" {
+        "healthy"
+    } else {
+        "degraded"
+    };
+
     // Return JSON with service and database status
     Json(json!({
         "status": service_status,
@@ -124,10 +136,6 @@ async fn health_check(State(db): State<DatabaseConnection>) -> Json<Value> {
         "timestamp": timestamp
     }))
 }
-
-
-
-
 
 enum MyError {
     FileDoesntExists,
@@ -148,16 +156,8 @@ impl IntoResponse for MyError {
     }
 }
 
-
-
-
-
-
-
 const LIST_OF_TASKS_PATH: &str = "/app/local/tmp/list_of_tasks.json";
 const PROJECT_INFO_PATH: &str = "/app/local/tmp/project_info.json";
-
-
 
 async fn get_list_of_tasks() -> Result<Vec<u8>, MyError> {
     let data = match fs::read_to_string(LIST_OF_TASKS_PATH) {
@@ -171,11 +171,10 @@ async fn get_list_of_tasks() -> Result<Vec<u8>, MyError> {
         Ok(tasks) => Ok(bitcode::encode(&tasks)),
         Err(_) => {
             tracing::error!("Json parser error");
-            return Err(MyError::JsonParserError);
-        },
+            Err(MyError::JsonParserError)
+        }
     }
 }
-
 
 // async fn get_list_of_team_members() -> Result<Vec<u8>, MyError> {
 //     let data = match fs::read_to_string(LIST_OF_TASKS_PATH) {
@@ -194,15 +193,11 @@ async fn get_list_of_tasks() -> Result<Vec<u8>, MyError> {
 //     }
 // }
 
-
-
 async fn get_project_info() -> Vec<u8> {
     let data = fs::read_to_string(PROJECT_INFO_PATH).unwrap();
     let project_info: common::models::ProjectInfo = serde_json::from_str(&data).unwrap();
     bitcode::encode(&project_info)
 }
-
-
 
 // async fn app_endpoint() -> Html<String> {
 //     // render the rsx! macro to HTML
@@ -223,8 +218,6 @@ async fn get_project_info() -> Vec<u8> {
 //     Html(dioxus_ssr::render(&app))
 // }
 
-
-
 // Define a local trait for frequency conversion
 trait IntoModelFrequency {
     fn into_model_frequency(self) -> models::Frequency;
@@ -244,7 +237,6 @@ impl IntoModelFrequency for resources::Frequency {
         }
     }
 }
-
 
 trait IntoModelResource {
     fn into_model_resource(self) -> common::models::Resource;
@@ -296,15 +288,16 @@ async fn get_resources(State(db): State<DatabaseConnection>) -> Result<Vec<u8>, 
         .all(&db)
         .await
         .map_err(|_| MyError::DatabaseError)?;
-    
+
     // Convert from SeaORM model to the application model
-    let resources: Vec<common::models::Resource> = resources.into_iter()
+    let resources: Vec<common::models::Resource> = resources
+        .into_iter()
         .map(|record| record.into_model_resource())
         .collect();
-    let resource_types: Vec<common::models::ResourceType> = resource_types.into_iter()
+    let resource_types: Vec<common::models::ResourceType> = resource_types
+        .into_iter()
         .map(|record| record.into_model_resource_type())
         .collect();
-    
+
     Ok(bitcode::encode(&(resources, resource_types)))
 }
-
