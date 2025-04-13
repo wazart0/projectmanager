@@ -24,11 +24,10 @@ pub enum Frequency {
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "resources")]
 pub struct Model {
-    #[sea_orm(primary_key, column_type = "BigInteger", auto_increment = false)]
-    pub resource_id: u64,
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub resource_id: i64,
     pub name: String,
-    #[sea_orm(column_type = "BigInteger")]
-    pub resource_type_id: u64,
+    pub resource_type_id: i64,
     pub description: Option<String>,
     pub comment: Option<String>,
     pub cost: Option<f64>,

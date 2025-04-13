@@ -5,6 +5,7 @@ use sea_orm::{ActiveValue::Set, DatabaseConnection, EntityTrait, TransactionTrai
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use spreadsheet_ods::*;
 use std::fs::read_to_string;
+use tracing::*;
 const APP_PATH: &str = "/app";
 const PROJECT_INFO: &str = "/app/local/tmp/project_info.json";
 const LIST_OF_TASKS: &str = "/app/local/tmp/list_of_tasks.json";
@@ -109,6 +110,13 @@ pub async fn import_tasks(db: DatabaseConnection) -> Result<(), String> {
         tasks
             .iter()
             .map(|task| entity::tasks_baselines::ActiveModel {
+                task_id: Set({
+                    tasks_inserted
+                        .iter()
+                        .find(|t| t.summary == task.name)
+                        .map(|t| t.task_id)
+                        .unwrap_or_else(|| panic!("Task {} not found", task.name))
+                }),
                 wbs: Set(task.wbs.clone()),
                 start_timezone: Set(project_info.timezone.clone()),
                 finish_timezone: Set(project_info.timezone.clone()),
@@ -116,21 +124,23 @@ pub async fn import_tasks(db: DatabaseConnection) -> Result<(), String> {
                     tasks_inserted
                         .iter()
                         .find(|t| t.summary == task.name)
-                        .map(|t| t.task_id as u64)
+                        .map(|t| t.task_id)
                 }),
                 start: Set(project_info
                     .project_start
-                    .checked_add_months(Months::new(task.begin_month.unwrap_or_else(|| {
-                        let mut begin_month = 29;
-                        for t in tasks.iter() {
-                            if t.parent == Some(task.id)
-                                && t.begin_month.unwrap_or(29) < begin_month
-                            {
-                                begin_month = t.begin_month.unwrap_or(29);
+                    .checked_add_months(Months::new(
+                        task.begin_month.unwrap_or_else(|| {
+                            let mut begin_month = 29;
+                            for t in tasks.iter() {
+                                if t.parent == Some(task.id)
+                                    && t.begin_month.unwrap_or(29) < begin_month
+                                {
+                                    begin_month = t.begin_month.unwrap_or(29);
+                                }
                             }
-                        }
-                        begin_month
-                    })))
+                            begin_month
+                        }) - 1,
+                    ))
                     .unwrap()),
                 finish: Set(project_info
                     .project_start
@@ -181,7 +191,9 @@ pub async fn import_resources(db: DatabaseConnection) -> Result<(), String> {
         .unwrap()
         .into_iter()
         .map(|resource_type| (resource_type.name, resource_type.resource_type_id))
-        .collect::<std::collections::HashMap<String, u64>>();
+        .collect::<std::collections::HashMap<String, i64>>();
+
+    debug!("Resource types: {:?}", resource_types);
 
     entity::resources::Entity::insert_many(
         resources

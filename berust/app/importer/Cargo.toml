@@ -12,5 +12,6 @@ spreadsheet-ods = "0.24.0"
 chrono = { version = "0.4.31" }
 polars = { version = "0.46.0" }
 tokio = { version = "1.41.0", features = ["rt-multi-thread", "tracing", "macros"] }
+tracing = { version = "0.1.41" }
 
-
+tracing-subscriber = "0.3.19"

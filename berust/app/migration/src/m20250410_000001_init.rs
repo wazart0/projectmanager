@@ -67,30 +67,6 @@ $$ LANGUAGE plpgsql strict immutable;
             db.execute(Statement::from_string(db.get_database_backend(), statement))
                 .await?;
         }
-        resource_types::Entity::insert_many([
-            resource_types::ActiveModel {
-                name: Set("Personnel".to_string()),
-                ..Default::default()
-            },
-            resource_types::ActiveModel {
-                name: Set("Material".to_string()),
-                ..Default::default()
-            },
-            resource_types::ActiveModel {
-                name: Set("Equipment".to_string()),
-                ..Default::default()
-            },
-            resource_types::ActiveModel {
-                name: Set("Service".to_string()),
-                ..Default::default()
-            },
-            resource_types::ActiveModel {
-                name: Set("Other".to_string()),
-                ..Default::default()
-            },
-        ])
-        .exec(db)
-        .await?;
 
         manager
             .create_table(schema.create_table_from_entity(resources::Entity))
@@ -173,6 +149,31 @@ $$ LANGUAGE plpgsql strict immutable;
         .exec(db)
         .await?;
 
+        resource_types::Entity::insert_many([
+            resource_types::ActiveModel {
+                name: Set("Personnel".to_string()),
+                ..Default::default()
+            },
+            resource_types::ActiveModel {
+                name: Set("Material".to_string()),
+                ..Default::default()
+            },
+            resource_types::ActiveModel {
+                name: Set("Equipment".to_string()),
+                ..Default::default()
+            },
+            resource_types::ActiveModel {
+                name: Set("Service".to_string()),
+                ..Default::default()
+            },
+            resource_types::ActiveModel {
+                name: Set("Other".to_string()),
+                ..Default::default()
+            },
+        ])
+        .exec(db)
+        .await?;
+
         Ok(())
     }
 
@@ -198,7 +199,9 @@ $$ LANGUAGE plpgsql strict immutable;
 fn default_id_statement(table_name: &str, column_name: &str) -> Vec<String> {
     vec![
         format!("CREATE SEQUENCE {column_name}_seq;"),
-        format!("ALTER TABLE {table_name} ALTER COLUMN {column_name} SET DEFAULT pseudo_encrypt(nextval('{column_name}_seq'));"),
+        format!(
+            "ALTER TABLE {table_name} ALTER COLUMN {column_name} SET DEFAULT pseudo_encrypt(nextval('{column_name}_seq'));"
+        ),
         format!("ALTER SEQUENCE {column_name}_seq OWNED BY {table_name}.{column_name};"),
     ]
 }

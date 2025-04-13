@@ -16,7 +16,7 @@ pub enum TaskStatus {
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "tasks")]
 pub struct Model {
-    #[sea_orm(primary_key, column_type = "BigInteger", auto_increment = false)]
+    #[sea_orm(primary_key, auto_increment = false)]
     pub task_id: i64,
     pub summary: String,
     pub description: Option<String>,
