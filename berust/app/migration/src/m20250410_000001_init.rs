@@ -1,10 +1,9 @@
+use sea_orm::{DatabaseBackend, EntityTrait, Set, Statement};
 use sea_orm_migration::prelude::*;
-use sea_orm::{DatabaseBackend, Statement, EntityTrait, Set};
-use tracing::error;
 use std::process::exit;
+use tracing::error;
 
 use entity::*;
-
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -15,34 +14,33 @@ impl MigrationTrait for Migration {
         let schema = sea_orm::Schema::new(manager.get_database_backend());
         let db = manager.get_connection();
 
-        db.execute(
-            Statement::from_string(
-                db.get_database_backend(),
-                r#"
-                    CREATE OR REPLACE
-                    FUNCTION pseudo_encrypt(value bigint) returns bigint AS $$
-                    DECLARE
-                    l1 bigint;
-                    l2 bigint;
-                    r1 bigint;
-                    r2 bigint;
-                    i bigint:=0;
-                    BEGIN
-                    l1:= (value >> 16) & 65535;
-                    r1:= value & 65535;
-                    WHILE i < 3 LOOP
-                    l2 := r1;
-                    r2 := l1 # ((((1366 * r1 + 150889) % 714025) / 714025.0) * 32767)::bigint;
-                    l1 := l2;
-                    r1 := r2;
-                    i := i + 1;
-                    END LOOP;
-                    return ((r1 << 16) + l1);
-                    END;
-                    $$ LANGUAGE plpgsql strict immutable;
-                "#
-            )
-        ).await?;   
+        db.execute(Statement::from_string(
+            db.get_database_backend(),
+            r#"
+CREATE OR REPLACE
+FUNCTION pseudo_encrypt(value bigint) returns bigint AS $$
+DECLARE
+l1 bigint;
+l2 bigint;
+r1 bigint;
+r2 bigint;
+i bigint:=0;
+BEGIN
+l1:= (value >> 16) & 65535;
+r1:= value & 65535;
+WHILE i < 3 LOOP
+l2 := r1;
+r2 := l1 # ((((1366 * r1 + 150889) % 714025) / 714025.0) * 32767)::bigint;
+l1 := l2;
+r1 := r2;
+i := i + 1;
+END LOOP;
+return ((r1 << 16) + l1);
+END;
+$$ LANGUAGE plpgsql strict immutable;
+            "#,
+        ))
+        .await?;
 
         // Create the frequency enum type first
         manager
@@ -50,34 +48,28 @@ impl MigrationTrait for Migration {
                 extension::postgres::Type::create()
                     .as_enum(Alias::new("frequency"))
                     .values([
-                        Alias::new("Yearly"), 
-                        Alias::new("Monthly"), 
-                        Alias::new("Weekly"), 
-                        Alias::new("Daily"), 
-                        Alias::new("Hourly"), 
-                        Alias::new("Minutely"), 
-                        Alias::new("Secondly")
+                        Alias::new("Yearly"),
+                        Alias::new("Monthly"),
+                        Alias::new("Weekly"),
+                        Alias::new("Daily"),
+                        Alias::new("Hourly"),
+                        Alias::new("Minutely"),
+                        Alias::new("Secondly"),
                     ])
-                    .to_owned()
+                    .to_owned(),
             )
             .await?;
 
         manager
-            .create_table(
-                schema.create_table_from_entity(resource_types::Entity)
-            )
+            .create_table(schema.create_table_from_entity(resource_types::Entity))
             .await?;
         for statement in default_id_statement("resource_types", "resource_type_id") {
-            db.execute(
-                Statement::from_string(
-                    db.get_database_backend(),
-                    statement
-                )
-            ).await?;
+            db.execute(Statement::from_string(db.get_database_backend(), statement))
+                .await?;
         }
         resource_types::Entity::insert_many([
             resource_types::ActiveModel {
-                name: Set("Human".to_string()),
+                name: Set("Personnel".to_string()),
                 ..Default::default()
             },
             resource_types::ActiveModel {
@@ -101,31 +93,19 @@ impl MigrationTrait for Migration {
         .await?;
 
         manager
-            .create_table(
-                schema.create_table_from_entity(resources::Entity)
-            )
+            .create_table(schema.create_table_from_entity(resources::Entity))
             .await?;
         for statement in default_id_statement("resources", "resource_id") {
-            db.execute(
-                Statement::from_string(
-                    db.get_database_backend(),
-                    statement
-                )
-            ).await?;
+            db.execute(Statement::from_string(db.get_database_backend(), statement))
+                .await?;
         }
 
         manager
-            .create_table(
-                schema.create_table_from_entity(baselines::Entity)
-            )
+            .create_table(schema.create_table_from_entity(baselines::Entity))
             .await?;
         for statement in default_id_statement("baselines", "baseline_id") {
-            db.execute(
-                Statement::from_string(
-                    db.get_database_backend(),
-                    statement
-                )
-            ).await?;
+            db.execute(Statement::from_string(db.get_database_backend(), statement))
+                .await?;
         }
 
         manager
@@ -133,80 +113,60 @@ impl MigrationTrait for Migration {
                 extension::postgres::Type::create()
                     .as_enum(Alias::new("task_status"))
                     .values([
-                        Alias::new("ToDo"), 
-                        Alias::new("InProgress"), 
-                        Alias::new("Done"), 
-                        Alias::new("Cancelled")
+                        Alias::new("ToDo"),
+                        Alias::new("InProgress"),
+                        Alias::new("Done"),
+                        Alias::new("Cancelled"),
                     ])
-                    .to_owned()
+                    .to_owned(),
             )
             .await?;
         manager
-            .create_table(
-                schema.create_table_from_entity(tasks::Entity)
-            )
-            .await?;    
+            .create_table(schema.create_table_from_entity(tasks::Entity))
+            .await?;
         for statement in default_id_statement("tasks", "task_id") {
-            db.execute(
-                Statement::from_string(
-                    db.get_database_backend(),
-                    statement
-                )
-            ).await?;
+            db.execute(Statement::from_string(db.get_database_backend(), statement))
+                .await?;
         }
 
         manager
-            .create_table(
-                schema.create_table_from_entity(tasks_baselines::Entity)
-            )
+            .create_table(schema.create_table_from_entity(tasks_baselines::Entity))
             .await?;
         for statement in default_id_statement("tasks_baselines", "task_baseline_id") {
-            db.execute(
-                Statement::from_string(
-                    db.get_database_backend(),
-                    statement
-                )
-            ).await?;
+            db.execute(Statement::from_string(db.get_database_backend(), statement))
+                .await?;
         }
 
         manager
-            .create_table(
-                schema.create_table_from_entity(config::Entity)
-            )
+            .create_table(schema.create_table_from_entity(config::Entity))
             .await?;
         for statement in default_id_statement("config", "config_id") {
-            db.execute(
-                Statement::from_string(
-                    db.get_database_backend(),
-                    statement
-                )
-            ).await?;
+            db.execute(Statement::from_string(db.get_database_backend(), statement))
+                .await?;
         }
 
-        baselines::Entity::insert_many([
-            baselines::ActiveModel {
-                baseline_id: Set(1),
-                name: Set("Default".to_string()),
-                ..Default::default()
-            },
-            baselines::ActiveModel {
-                baseline_id: Set(2),
-                name: Set("Current".to_string()),
-                ..Default::default()
-            },
-        ])
+        baselines::Entity::insert_many([baselines::ActiveModel {
+            baseline_id: Set(1),
+            name: Set("Current".to_string()),
+            ..Default::default()
+        }])
         .exec(db)
         .await?;
 
         config::Entity::insert_many([
             config::ActiveModel {
                 config_key: Set("baseline_id_default".to_string()),
-                config_value: Set("1".to_string()),
+                config_value: Set(None),
                 ..Default::default()
             },
             config::ActiveModel {
                 config_key: Set("baseline_id_current".to_string()),
-                config_value: Set("2".to_string()),
+                config_value: Set(Some("1".to_string())),
+                ..Default::default()
+            },
+            config::ActiveModel {
+                config_key: Set("timezone".to_string()),
+                config_value: Set(Some("Europe/Warsaw".to_string())),
                 ..Default::default()
             },
         ])
@@ -224,18 +184,16 @@ impl MigrationTrait for Migration {
                     .get_connection()
                     .execute_unprepared("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
                     .await?;
-            },
+            }
             _ => {
                 error!("Down migration not supported for this database backend");
                 exit(1);
             }
         }
-        
+
         Ok(())
     }
 }
-
-
 
 fn default_id_statement(table_name: &str, column_name: &str) -> Vec<String> {
     vec![
@@ -244,4 +202,3 @@ fn default_id_statement(table_name: &str, column_name: &str) -> Vec<String> {
         format!("ALTER SEQUENCE {column_name}_seq OWNED BY {table_name}.{column_name};"),
     ]
 }
-

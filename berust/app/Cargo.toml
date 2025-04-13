@@ -18,11 +18,12 @@ tower-http = { version = "0.6.2", features = ["cors"] }
 bitcode = "0.6.6"
 spreadsheet-ods = "0.24.0"
 sea-orm = { version = "1.1", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
-cargo-watch = "8.5.3"
 
 entity = { path = "entity" }
 migration = { path = "migration" }
 common = { path = "../../common" }
+chrono = "0.4.40"
+chrono-tz = "0.10.3"
 
 [features]
 pmbe = []

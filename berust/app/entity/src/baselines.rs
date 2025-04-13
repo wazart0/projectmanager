@@ -1,8 +1,5 @@
 use sea_orm::entity::prelude::*;
 
-
-
-
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "baselines")]
 pub struct Model {
@@ -15,9 +12,7 @@ pub struct Model {
     pub is_active: bool,
 }
 
-
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
-

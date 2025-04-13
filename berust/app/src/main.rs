@@ -25,16 +25,14 @@ async fn main() {
 
     // Read database connection string from environment variable
     let db_connection_string = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-        error!("DATABASE_URL environment variable not set, using default");
-        std::process::exit(1);
+        panic!("DATABASE_URL environment variable not set, using default");
     });
 
     // Initialize database connection
     let db_connection = Database::connect(db_connection_string)
         .await
         .unwrap_or_else(|e| {
-            error!("Failed to create DB connection: {}", e);
-            std::process::exit(1);
+            panic!("Failed to create DB connection: {}", e);
         });
 
     // Verify database connection
@@ -47,24 +45,21 @@ async fn main() {
     {
         Ok(_) => info!("Database connection verified"),
         Err(e) => {
-            error!("Failed to connect to database: {}", e);
-            std::process::exit(1);
+            panic!("Failed to connect to database: {}", e);
         }
     }
 
     match Migrator::up(&db_connection, None).await {
         Ok(_) => info!("Database migrations completed"),
         Err(e) => {
-            error!("Failed to migrate database: {}", e);
-            std::process::exit(1);
+            panic!("Failed to migrate database: {}", e);
         }
     }
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3333")
         .await
         .unwrap_or_else(|e| {
-            error!("Failed to bind to port 3333: {}", e);
-            std::process::exit(1);
+            panic!("Failed to bind to port 3333: {}", e);
         });
 
     info!("listening on http://0.0.0.0:3333");
@@ -85,8 +80,7 @@ async fn main() {
         .with_state(db_connection); // Add database connection to application state
 
     axum::serve(listener, app).await.unwrap_or_else(|e| {
-        error!("Server error: {}", e);
-        std::process::exit(1);
+        panic!("Server error: {}", e);
     });
 }
 

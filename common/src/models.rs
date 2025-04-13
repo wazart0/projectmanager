@@ -124,9 +124,9 @@ pub const RESOURCE_COLUMNS: [&str; 13] = [
     bitcode::Encode, bitcode::Decode, serde::Deserialize, serde::Serialize, Clone, PartialEq, Debug,
 )]
 pub struct Resource {
-    pub resource_id: i64,
+    pub resource_id: u64,
     pub name: String,
-    pub resource_type_id: i64,
+    pub resource_type_id: u64,
     pub description: Option<String>,
     pub comment: Option<String>,
     pub cost: Option<f64>,
@@ -145,7 +145,7 @@ pub const RESOURCE_TYPE_COLUMNS: [&str; 4] = ["resource_type_id", "name", "descr
     bitcode::Encode, bitcode::Decode, serde::Deserialize, serde::Serialize, Clone, PartialEq, Debug,
 )]
 pub struct ResourceType {
-    pub resource_type_id: i64,
+    pub resource_type_id: u64,
     pub name: String,
     pub description: Option<String>,
     pub comment: Option<String>,

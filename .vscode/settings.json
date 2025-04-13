@@ -4,7 +4,8 @@
         "./ferust/app/Cargo.toml",
         "./common/Cargo.toml",
         "./berust/app/migration/Cargo.toml",
-        "./berust/app/entity/Cargo.toml"
+        "./berust/app/entity/Cargo.toml",
+        "./berust/app/importer/Cargo.toml"
     ],
     "tailwindCSS.experimental.classRegex": ["class: \"(.*)\""],
     "tailwindCSS.includeLanguages": {

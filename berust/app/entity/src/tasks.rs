@@ -1,6 +1,5 @@
 use sea_orm::entity::prelude::*;
 
-
 #[derive(Clone, Debug, PartialEq, EnumIter, DeriveActiveEnum)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "task_status")]
 pub enum TaskStatus {
@@ -13,8 +12,6 @@ pub enum TaskStatus {
     #[sea_orm(string_value = "Cancelled")]
     Cancelled,
 }
-
-
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "tasks")]
@@ -32,4 +29,3 @@ pub struct Model {
 pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
-

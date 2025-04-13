@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y \
         librsvg2-dev
 
 RUN rustup update && rustup component add rustfmt clippy
-RUN cargo install dioxus-cli sea-orm-cli
+RUN cargo install dioxus-cli sea-orm-cli cargo-watch
 # RUN npm install tailwindcss @tailwindcss/cli
 
 # USER service

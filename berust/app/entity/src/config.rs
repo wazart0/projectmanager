@@ -1,8 +1,5 @@
 use sea_orm::entity::prelude::*;
 
-
-
-
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "config")]
 pub struct Model {
@@ -10,7 +7,7 @@ pub struct Model {
     pub config_id: i64,
     #[sea_orm(index)]
     pub config_key: String,
-    pub config_value: String,
+    pub config_value: Option<String>,
     pub description: Option<String>,
 }
 
@@ -18,4 +15,3 @@ pub struct Model {
 pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
-
