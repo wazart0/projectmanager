@@ -1,29 +1,24 @@
-use axum::{
-    Router,
-    extract::{Query, State},
-    http::StatusCode,
-    response::{IntoResponse, Json, Response},
-    routing::get,
+use actix_cors::Cors;
+use actix_web::http::StatusCode;
+use actix_web::{
+    App, HttpResponse, HttpServer, Responder, ResponseError, Result, middleware::Logger, web,
 };
+
 use migration::{Migrator, MigratorTrait};
 use sea_orm::{
     ColumnTrait, ConnectionTrait, Database, DatabaseConnection, EntityTrait, FromQueryResult,
-    QueryFilter, QuerySelect, RelationTrait, Statement,
+    QueryFilter, QuerySelect, Statement,
 };
-use serde_json::{Value, json};
+use serde::Serialize;
+use serde_json::json;
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter, Result as FmtResult};
+use std::fs;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tracing::{error, info, warn};
-// use dioxus::prelude::*;
-use axum::extract::Request;
-use axum::middleware::{self, Next};
-use serde::{Deserialize, Serialize};
-use std::fs;
-use tower::ServiceBuilder;
-use tower_http::cors::{Any, CorsLayer};
 
-#[tokio::main]
-async fn main() {
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
         .init();
@@ -61,63 +56,37 @@ async fn main() {
         }
     }
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3333")
-        .await
-        .unwrap_or_else(|e| {
-            panic!("Failed to bind to port 3333: {}", e);
-        });
+    info!("starting server on http://0.0.0.0:3333");
+    // Database connection needs to be cloned for each worker
+    let db_data = web::Data::new(db_connection);
 
-    info!("listening on http://0.0.0.0:3333");
+    // Build the application with routes and middleware using Actix-web
+    HttpServer::new(move || {
+        // Configure CORS to allow all origins with a wildcard using actix-cors
+        let cors = Cors::default()
+            .allow_any_origin()
+            .allow_any_method()
+            .allow_any_header();
 
-    // Configure CORS to allow all origins with a wildcard
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
-
-    // Build the application with routes and middleware
-    let app = Router::new()
-        .route("/health", get(health_check))
-        .route("/tasks", get(get_list_of_tasks))
-        .route("/resources", get(get_resources))
-        .route("/resources/allocation", get(get_resource_allocation))
-        .layer(
-            ServiceBuilder::new()
-                .layer(middleware::from_fn(log_requests))
-                .layer(cors),
-        )
-        .with_state(db_connection); // Add database connection to application state
-
-    axum::serve(listener, app).await.unwrap_or_else(|e| {
-        panic!("Server error: {}", e);
-    });
+        App::new()
+            .app_data(db_data.clone())
+            .wrap(cors)
+            .wrap(Logger::default())
+            .service(web::resource("/health").route(web::get().to(health_check)))
+            .service(web::resource("/tasks").route(web::get().to(get_list_of_tasks)))
+            .service(web::resource("/resources").route(web::get().to(get_resources)))
+            .service(
+                web::resource("/resources/allocation")
+                    .route(web::get().to(get_resource_allocation)),
+            )
+    })
+    .bind(("0.0.0.0", 3333))?
+    .workers(4)
+    .run()
+    .await
 }
 
-// Middleware function to log request details
-async fn log_requests(req: Request, next: Next) -> Response {
-    let start = Instant::now();
-    let method = req.method().clone();
-    let uri = req.uri().clone();
-
-    // Process the request
-    let response = next.run(req).await;
-
-    let duration = start.elapsed();
-    let status = response.status();
-
-    // Log the details
-    info!(
-        method = %method,
-        uri = %uri,
-        status = %status,
-        duration = ?duration,
-        "Processed request"
-    );
-
-    response
-}
-
-async fn health_check(State(db): State<DatabaseConnection>) -> Json<Value> {
+async fn health_check(db: web::Data<DatabaseConnection>) -> impl Responder {
     let start = Instant::now();
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -155,8 +124,8 @@ async fn health_check(State(db): State<DatabaseConnection>) -> Json<Value> {
         "degraded"
     };
 
-    // Return JSON with service and database status
-    Json(json!({
+    // Return JSON with service and database status using HttpResponse
+    HttpResponse::Ok().json(json!({
         "status": service_status,
         "database": db_status,
         "version": env!("CARGO_PKG_VERSION"),
@@ -164,29 +133,37 @@ async fn health_check(State(db): State<DatabaseConnection>) -> Json<Value> {
     }))
 }
 
+#[derive(Debug)]
 enum MyError {
     FileDoesntExists,
     JsonParserError,
     DatabaseError,
 }
 
-impl IntoResponse for MyError {
-    fn into_response(self) -> Response {
-        let body = match self {
-            MyError::FileDoesntExists => "Server error: File doesn't exists",
-            MyError::JsonParserError => "Server error: Json parser error",
-            MyError::DatabaseError => "Server error: Database operation failed",
-        };
+impl Display for MyError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        match self {
+            MyError::FileDoesntExists => write!(f, "Server error: File doesn't exists"),
+            MyError::JsonParserError => write!(f, "Server error: Json parser error"),
+            MyError::DatabaseError => write!(f, "Server error: Database operation failed"),
+        }
+    }
+}
 
-        error!("{}, {}", StatusCode::INTERNAL_SERVER_ERROR, body);
-        (StatusCode::INTERNAL_SERVER_ERROR, body).into_response()
+impl ResponseError for MyError {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
+
+    fn error_response(&self) -> HttpResponse {
+        error!("{}, {}", self.status_code(), self.to_string());
+        HttpResponse::build(self.status_code()).body(self.to_string())
     }
 }
 
 const LIST_OF_TASKS_PATH: &str = "/app/local/tmp/list_of_tasks.json";
-// const PROJECT_INFO_PATH: &str = "/app/local/tmp/project_info.json";
 
-async fn get_list_of_tasks() -> Result<Vec<u8>, MyError> {
+async fn get_list_of_tasks() -> Result<HttpResponse, MyError> {
     let data = match fs::read_to_string(LIST_OF_TASKS_PATH) {
         Ok(data) => data,
         Err(_) => {
@@ -195,7 +172,12 @@ async fn get_list_of_tasks() -> Result<Vec<u8>, MyError> {
         }
     };
     match serde_json::from_str::<Vec<communication::models::Task>>(&data) {
-        Ok(tasks) => Ok(bitcode::encode(&tasks)),
+        Ok(tasks) => {
+            let encoded = bitcode::encode(&tasks);
+            Ok(HttpResponse::Ok()
+                .content_type("application/octet-stream")
+                .body(encoded))
+        }
         Err(_) => {
             tracing::error!("Json parser error");
             Err(MyError::JsonParserError)
@@ -203,54 +185,10 @@ async fn get_list_of_tasks() -> Result<Vec<u8>, MyError> {
     }
 }
 
-// async fn get_list_of_team_members() -> Result<Vec<u8>, MyError> {
-//     let data = match fs::read_to_string(LIST_OF_TASKS_PATH) {
-//         Ok(data) => data,
-//         Err(_) => {
-//             tracing::error!("File doesn't exists");
-//             return Err(MyError::FileDoesntExists);
-//         }
-//     };
-//     match serde_json::from_str::<Vec<communication::models::TeamMember>>(&data) {
-//         Ok(tasks) => Ok(bitcode::encode(&tasks)),
-//         Err(_) => {
-//             tracing::error!("Json parser error");
-//             return Err(MyError::JsonParserError);
-//         },
-//     }
-// }
-
-// async fn get_project_info() -> Vec<u8> {
-//     let data = fs::read_to_string(PROJECT_INFO_PATH).unwrap();
-//     let project_info: communication::models::ProjectInfo = serde_json::from_str(&data).unwrap();
-//     bitcode::encode(&project_info)
-// }
-
-// async fn app_endpoint() -> Html<String> {
-//     // render the rsx! macro to HTML
-//     Html(dioxus_ssr::render_element(rsx! { div { "hello world!" } }))
-// }
-
-// async fn app_endpoint() -> Html<String> {
-//     // create a component that renders a div with the text "hello world"
-//     fn app() -> Element {
-//         rsx! { div { "hello world" } }
-//     }
-//     // create a VirtualDom with the app component
-//     let mut app = VirtualDom::new(app);
-//     // rebuild the VirtualDom before rendering
-//     app.rebuild_in_place();
-
-//     // render the VirtualDom to HTML
-//     Html(dioxus_ssr::render(&app))
-// }
-
-// Define a local trait for frequency conversion
 trait IntoModelFrequency {
     fn into_model_frequency(self) -> communication::resources::Frequency;
 }
 
-// Implement the trait for resources::Frequency
 impl IntoModelFrequency for entity::resources::Frequency {
     fn into_model_frequency(self) -> communication::resources::Frequency {
         match self {
@@ -304,19 +242,22 @@ impl IntoModelResourceType for entity::resource_types::Model {
     }
 }
 
-// New function to get team members from the database using SeaORM
-async fn get_resources(State(db): State<DatabaseConnection>) -> Result<Vec<u8>, MyError> {
-    // Use the SeaORM query builder
+async fn get_resources(db: web::Data<DatabaseConnection>) -> Result<HttpResponse, MyError> {
     let resources = entity::resources::Entity::find()
-        .all(&db)
+        .all(db.get_ref())
         .await
-        .map_err(|_| MyError::DatabaseError)?;
+        .map_err(|e| {
+            error!("Database error fetching resources: {}", e);
+            MyError::DatabaseError
+        })?;
     let resource_types = entity::resource_types::Entity::find()
-        .all(&db)
+        .all(db.get_ref())
         .await
-        .map_err(|_| MyError::DatabaseError)?;
+        .map_err(|e| {
+            error!("Database error fetching resource types: {}", e);
+            MyError::DatabaseError
+        })?;
 
-    // Convert from SeaORM model to the application model
     let resources: Vec<communication::resources::Resource> = resources
         .into_iter()
         .map(|record| record.into_model_resource())
@@ -326,68 +267,53 @@ async fn get_resources(State(db): State<DatabaseConnection>) -> Result<Vec<u8>, 
         .map(|record| record.into_model_resource_type())
         .collect();
 
-    Ok(bitcode::encode(&(resources, resource_types)))
+    let encoded = bitcode::encode(&(resources, resource_types));
+    Ok(HttpResponse::Ok()
+        .content_type("application/octet-stream")
+        .body(encoded))
 }
 
-// Define a struct to hold the joined query results
 #[derive(FromQueryResult, Debug, Serialize)]
 struct ResourceAllocationDetails {
-    // Fields from resources_baselines
     baseline_id: i64,
     resource_id: i64,
     task_id: i64,
     capacity_allocated: Option<f64>,
-    // Add other necessary fields from resources_baselines here...
-    // e.g., allocation_percentage: Option<Decimal>,
-
-    // Fields from joined tables (using aliases defined in column_as)
-    resource_name: Option<String>, // Use Option<> because of LEFT JOIN
-    task_summary: Option<String>,  // Use Option<> because of LEFT JOIN
+    resource_name: Option<String>,
+    task_summary: Option<String>,
 }
 
 async fn get_resource_allocation(
-    State(db): State<DatabaseConnection>,
-    Query(query): Query<HashMap<String, String>>,
-) -> Result<Json<Value>, MyError> {
-    // Return JSON for better structure
-    // Safely parse the baseline_id from the query parameters
+    db: web::Data<DatabaseConnection>,
+    query: web::Query<HashMap<String, String>>,
+) -> Result<HttpResponse, MyError> {
     let baseline_id_str = query.get("baseline_id").ok_or_else(|| {
         warn!("Missing 'baseline_id' query parameter");
-        // Consider a more specific error type like BadRequest
-        MyError::JsonParserError // Reusing for simplicity, ideally a better error
+        MyError::JsonParserError
     })?;
 
     let baseline_id: i64 = baseline_id_str.parse().map_err(|e| {
         warn!("Invalid 'baseline_id' format: {}", e);
-        // Consider a more specific error type like BadRequest
-        MyError::JsonParserError // Reusing for simplicity
+        MyError::JsonParserError
     })?;
 
     let resource_allocations = entity::resources_baselines::Entity::find()
         .filter(entity::resources_baselines::Column::BaselineId.eq(baseline_id))
-        // Select columns from the primary table (resources_baselines)
         .column(entity::resources_baselines::Column::BaselineId)
         .column(entity::resources_baselines::Column::ResourceId)
         .column(entity::resources_baselines::Column::TaskId)
         .column(entity::resources_baselines::Column::CapacityAllocated)
-        // Add other columns from resources_baselines as needed
-        // .column(entity::resources_baselines::Column::AllocationPercentage)
-        // Select and alias columns from joined tables
         .column_as(entity::resources::Column::Name, "resource_name")
         .column_as(entity::tasks::Column::Summary, "task_summary")
-        // Perform the joins
         .left_join(entity::resources::Entity)
         .left_join(entity::tasks::Entity)
-        // Map the results into our custom struct
         .into_model::<ResourceAllocationDetails>()
-        .all(&db)
+        .all(db.get_ref())
         .await
         .map_err(|db_err| {
-            // Log the actual database error
             error!("Database error fetching resource allocations: {}", db_err);
-            MyError::DatabaseError // Return the generic error type
+            MyError::DatabaseError
         })?;
 
-    // Return the results as JSON
-    Ok(Json(json!(resource_allocations)))
+    Ok(HttpResponse::Ok().json(resource_allocations))
 }
