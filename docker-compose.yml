@@ -48,7 +48,7 @@ services:
       args:
         - USER_ID=1000
         - GROUP_ID=1000
-    # user: *default-user
+    user: *default-user
     working_dir: /app/ferust/
     entrypoint: sleep infinity
     environment:

@@ -52,11 +52,12 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "bitcode",
- "common",
+ "communication",
  "dioxus",
  "reqwest",
  "serde",
  "serde_json",
+ "struct-field-names-as-array",
  "tracing",
 ]
 
@@ -623,11 +624,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "common"
+name = "communication"
 version = "0.1.0"
 dependencies = [
  "bitcode",
  "serde",
+ "struct-field-names-as-array",
 ]
 
 [[package]]
@@ -4574,6 +4576,26 @@ dependencies = [
  "phf_shared 0.11.3",
  "proc-macro2",
  "quote",
+]
+
+[[package]]
+name = "struct-field-names-as-array"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22ba4bae771f9cc992c4f403636c54d2ef13acde6367583e99d06bb336674dd9"
+dependencies = [
+ "struct-field-names-as-array-derive",
+]
+
+[[package]]
+name = "struct-field-names-as-array-derive"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2dbf8b57f3ce20e4bb171a11822b283bdfab6c4bb0fe64fa729f045f23a0938"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
 ]
 
 [[package]]

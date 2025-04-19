@@ -121,27 +121,42 @@ $$ LANGUAGE plpgsql strict immutable;
                 .await?;
         }
 
-        baselines::Entity::insert_many([baselines::ActiveModel {
-            baseline_id: Set(1),
-            name: Set("Current".to_string()),
-            ..Default::default()
-        }])
+        manager
+            .create_table(schema.create_table_from_entity(resources_baselines::Entity))
+            .await?;
+        for statement in default_id_statement("resources_baselines", "resource_baseline_id") {
+            db.execute(Statement::from_string(db.get_database_backend(), statement))
+                .await?;
+        }
+
+        baselines::Entity::insert_many([
+            baselines::ActiveModel {
+                baseline_id: Set(1),
+                name: Set("Default".to_string()),
+                ..Default::default()
+            },
+            baselines::ActiveModel {
+                baseline_id: Set(2),
+                name: Set("Current".to_string()),
+                ..Default::default()
+            },
+        ])
         .exec(db)
         .await?;
 
         config::Entity::insert_many([
             config::ActiveModel {
                 config_key: Set("baseline_id_default".to_string()),
-                config_value: Set(None),
-                ..Default::default()
-            },
-            config::ActiveModel {
-                config_key: Set("baseline_id_current".to_string()),
                 config_value: Set(Some("1".to_string())),
                 ..Default::default()
             },
             config::ActiveModel {
-                config_key: Set("timezone".to_string()),
+                config_key: Set("baseline_id_current".to_string()),
+                config_value: Set(Some("2".to_string())),
+                ..Default::default()
+            },
+            config::ActiveModel {
+                config_key: Set("timezone_default".to_string()),
                 config_value: Set(Some("Europe/Warsaw".to_string())),
                 ..Default::default()
             },

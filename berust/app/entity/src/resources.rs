@@ -36,7 +36,7 @@ pub struct Model {
     pub billing_frequency: Option<Frequency>,
     pub billing_interval: Option<i32>,
     pub availability: Option<String>, // TODO: placeholder, modify to reference to calendar
-    pub capacity: Option<i32>,
+    pub capacity: Option<f64>,
     pub capacity_unit: Option<String>,
     #[sea_orm(default_value = true)]
     pub is_active: bool,

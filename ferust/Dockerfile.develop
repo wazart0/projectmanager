@@ -21,11 +21,12 @@ RUN apt-get update && apt-get install -y \
         libayatana-appindicator3-dev \
         librsvg2-dev
 
+USER service
+
 RUN rustup update && rustup component add rustfmt clippy
 RUN cargo install dioxus-cli sea-orm-cli cargo-watch
 # RUN npm install tailwindcss @tailwindcss/cli
 
-# USER service
 
 # COPY . .
 

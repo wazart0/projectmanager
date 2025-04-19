@@ -1,14 +1,15 @@
 [package]
-name = "common"
+name = "communication"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 serde = { version = "1.0.219", features = ["derive"] }
 bitcode = "0.6.5"
+struct-field-names-as-array = "0.3.0"
 
 [lib]
-name = "common"
+name = "communication"
 path = "src/lib.rs"
 
 

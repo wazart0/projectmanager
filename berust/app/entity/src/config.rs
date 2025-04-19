@@ -5,7 +5,7 @@ use sea_orm::entity::prelude::*;
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub config_id: i64,
-    #[sea_orm(index)]
+    #[sea_orm(index, unique)]
     pub config_key: String,
     pub config_value: Option<String>,
     pub description: Option<String>,

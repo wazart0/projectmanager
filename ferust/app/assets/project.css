@@ -42,6 +42,14 @@
     overflow: scroll;
 }
 
+#full_view {
+    position: absolute;
+    left: 0vw;
+    top: 2rem;
+    height: calc(100vh - 2rem);
+    width: 100vw;
+    overflow: scroll;
+}
 
 .table {
 

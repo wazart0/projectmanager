@@ -1,21 +1,26 @@
 use axum::{
-    extract::State,
+    Router,
+    extract::{Query, State},
     http::StatusCode,
     response::{IntoResponse, Json, Response},
     routing::get,
-    Router,
 };
 use migration::{Migrator, MigratorTrait};
-use sea_orm::{ConnectionTrait, Database, DatabaseConnection, EntityTrait, Statement};
-use serde_json::{json, Value};
+use sea_orm::{
+    ColumnTrait, ConnectionTrait, Database, DatabaseConnection, EntityTrait, FromQueryResult,
+    QueryFilter, QuerySelect, RelationTrait, Statement,
+};
+use serde_json::{Value, json};
+use std::collections::HashMap;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tracing::{error, info, warn};
 // use dioxus::prelude::*;
+use axum::extract::Request;
+use axum::middleware::{self, Next};
+use serde::{Deserialize, Serialize};
 use std::fs;
+use tower::ServiceBuilder;
 use tower_http::cors::{Any, CorsLayer};
-
-use common::*;
-use entity::*;
 
 #[tokio::main]
 async fn main() {
@@ -74,14 +79,42 @@ async fn main() {
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/tasks", get(get_list_of_tasks))
-        .route("/project", get(get_project_info))
         .route("/resources", get(get_resources))
-        .layer(cors)
+        .route("/resources/allocation", get(get_resource_allocation))
+        .layer(
+            ServiceBuilder::new()
+                .layer(middleware::from_fn(log_requests))
+                .layer(cors),
+        )
         .with_state(db_connection); // Add database connection to application state
 
     axum::serve(listener, app).await.unwrap_or_else(|e| {
         panic!("Server error: {}", e);
     });
+}
+
+// Middleware function to log request details
+async fn log_requests(req: Request, next: Next) -> Response {
+    let start = Instant::now();
+    let method = req.method().clone();
+    let uri = req.uri().clone();
+
+    // Process the request
+    let response = next.run(req).await;
+
+    let duration = start.elapsed();
+    let status = response.status();
+
+    // Log the details
+    info!(
+        method = %method,
+        uri = %uri,
+        status = %status,
+        duration = ?duration,
+        "Processed request"
+    );
+
+    response
 }
 
 async fn health_check(State(db): State<DatabaseConnection>) -> Json<Value> {
@@ -151,7 +184,7 @@ impl IntoResponse for MyError {
 }
 
 const LIST_OF_TASKS_PATH: &str = "/app/local/tmp/list_of_tasks.json";
-const PROJECT_INFO_PATH: &str = "/app/local/tmp/project_info.json";
+// const PROJECT_INFO_PATH: &str = "/app/local/tmp/project_info.json";
 
 async fn get_list_of_tasks() -> Result<Vec<u8>, MyError> {
     let data = match fs::read_to_string(LIST_OF_TASKS_PATH) {
@@ -161,7 +194,7 @@ async fn get_list_of_tasks() -> Result<Vec<u8>, MyError> {
             return Err(MyError::FileDoesntExists);
         }
     };
-    match serde_json::from_str::<Vec<common::models::Task>>(&data) {
+    match serde_json::from_str::<Vec<communication::models::Task>>(&data) {
         Ok(tasks) => Ok(bitcode::encode(&tasks)),
         Err(_) => {
             tracing::error!("Json parser error");
@@ -178,7 +211,7 @@ async fn get_list_of_tasks() -> Result<Vec<u8>, MyError> {
 //             return Err(MyError::FileDoesntExists);
 //         }
 //     };
-//     match serde_json::from_str::<Vec<common::models::TeamMember>>(&data) {
+//     match serde_json::from_str::<Vec<communication::models::TeamMember>>(&data) {
 //         Ok(tasks) => Ok(bitcode::encode(&tasks)),
 //         Err(_) => {
 //             tracing::error!("Json parser error");
@@ -187,11 +220,11 @@ async fn get_list_of_tasks() -> Result<Vec<u8>, MyError> {
 //     }
 // }
 
-async fn get_project_info() -> Vec<u8> {
-    let data = fs::read_to_string(PROJECT_INFO_PATH).unwrap();
-    let project_info: common::models::ProjectInfo = serde_json::from_str(&data).unwrap();
-    bitcode::encode(&project_info)
-}
+// async fn get_project_info() -> Vec<u8> {
+//     let data = fs::read_to_string(PROJECT_INFO_PATH).unwrap();
+//     let project_info: communication::models::ProjectInfo = serde_json::from_str(&data).unwrap();
+//     bitcode::encode(&project_info)
+// }
 
 // async fn app_endpoint() -> Html<String> {
 //     // render the rsx! macro to HTML
@@ -214,31 +247,31 @@ async fn get_project_info() -> Vec<u8> {
 
 // Define a local trait for frequency conversion
 trait IntoModelFrequency {
-    fn into_model_frequency(self) -> models::Frequency;
+    fn into_model_frequency(self) -> communication::resources::Frequency;
 }
 
 // Implement the trait for resources::Frequency
-impl IntoModelFrequency for resources::Frequency {
-    fn into_model_frequency(self) -> models::Frequency {
+impl IntoModelFrequency for entity::resources::Frequency {
+    fn into_model_frequency(self) -> communication::resources::Frequency {
         match self {
-            resources::Frequency::Monthly => models::Frequency::Monthly,
-            resources::Frequency::Weekly => models::Frequency::Weekly,
-            resources::Frequency::Daily => models::Frequency::Daily,
-            resources::Frequency::Hourly => models::Frequency::Hourly,
-            resources::Frequency::Minutely => models::Frequency::Minutely,
-            resources::Frequency::Secondly => models::Frequency::Secondly,
-            resources::Frequency::Yearly => models::Frequency::Yearly,
+            entity::resources::Frequency::Monthly => communication::resources::Frequency::Monthly,
+            entity::resources::Frequency::Weekly => communication::resources::Frequency::Weekly,
+            entity::resources::Frequency::Daily => communication::resources::Frequency::Daily,
+            entity::resources::Frequency::Hourly => communication::resources::Frequency::Hourly,
+            entity::resources::Frequency::Minutely => communication::resources::Frequency::Minutely,
+            entity::resources::Frequency::Secondly => communication::resources::Frequency::Secondly,
+            entity::resources::Frequency::Yearly => communication::resources::Frequency::Yearly,
         }
     }
 }
 
 trait IntoModelResource {
-    fn into_model_resource(self) -> common::models::Resource;
+    fn into_model_resource(self) -> communication::resources::Resource;
 }
 
-impl IntoModelResource for resources::Model {
-    fn into_model_resource(self) -> common::models::Resource {
-        common::models::Resource {
+impl IntoModelResource for entity::resources::Model {
+    fn into_model_resource(self) -> communication::resources::Resource {
+        communication::resources::Resource {
             resource_id: self.resource_id,
             name: self.name,
             resource_type_id: self.resource_type_id,
@@ -257,12 +290,12 @@ impl IntoModelResource for resources::Model {
 }
 
 trait IntoModelResourceType {
-    fn into_model_resource_type(self) -> common::models::ResourceType;
+    fn into_model_resource_type(self) -> communication::resources::ResourceType;
 }
 
-impl IntoModelResourceType for resource_types::Model {
-    fn into_model_resource_type(self) -> common::models::ResourceType {
-        common::models::ResourceType {
+impl IntoModelResourceType for entity::resource_types::Model {
+    fn into_model_resource_type(self) -> communication::resources::ResourceType {
+        communication::resources::ResourceType {
             resource_type_id: self.resource_type_id,
             name: self.name,
             description: self.description,
@@ -274,24 +307,87 @@ impl IntoModelResourceType for resource_types::Model {
 // New function to get team members from the database using SeaORM
 async fn get_resources(State(db): State<DatabaseConnection>) -> Result<Vec<u8>, MyError> {
     // Use the SeaORM query builder
-    let resources = resources::Entity::find()
+    let resources = entity::resources::Entity::find()
         .all(&db)
         .await
         .map_err(|_| MyError::DatabaseError)?;
-    let resource_types = resource_types::Entity::find()
+    let resource_types = entity::resource_types::Entity::find()
         .all(&db)
         .await
         .map_err(|_| MyError::DatabaseError)?;
 
     // Convert from SeaORM model to the application model
-    let resources: Vec<common::models::Resource> = resources
+    let resources: Vec<communication::resources::Resource> = resources
         .into_iter()
         .map(|record| record.into_model_resource())
         .collect();
-    let resource_types: Vec<common::models::ResourceType> = resource_types
+    let resource_types: Vec<communication::resources::ResourceType> = resource_types
         .into_iter()
         .map(|record| record.into_model_resource_type())
         .collect();
 
     Ok(bitcode::encode(&(resources, resource_types)))
+}
+
+// Define a struct to hold the joined query results
+#[derive(FromQueryResult, Debug, Serialize)]
+struct ResourceAllocationDetails {
+    // Fields from resources_baselines
+    baseline_id: i64,
+    resource_id: i64,
+    task_id: i64,
+    capacity_allocated: Option<f64>,
+    // Add other necessary fields from resources_baselines here...
+    // e.g., allocation_percentage: Option<Decimal>,
+
+    // Fields from joined tables (using aliases defined in column_as)
+    resource_name: Option<String>, // Use Option<> because of LEFT JOIN
+    task_summary: Option<String>,  // Use Option<> because of LEFT JOIN
+}
+
+async fn get_resource_allocation(
+    State(db): State<DatabaseConnection>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Result<Json<Value>, MyError> {
+    // Return JSON for better structure
+    // Safely parse the baseline_id from the query parameters
+    let baseline_id_str = query.get("baseline_id").ok_or_else(|| {
+        warn!("Missing 'baseline_id' query parameter");
+        // Consider a more specific error type like BadRequest
+        MyError::JsonParserError // Reusing for simplicity, ideally a better error
+    })?;
+
+    let baseline_id: i64 = baseline_id_str.parse().map_err(|e| {
+        warn!("Invalid 'baseline_id' format: {}", e);
+        // Consider a more specific error type like BadRequest
+        MyError::JsonParserError // Reusing for simplicity
+    })?;
+
+    let resource_allocations = entity::resources_baselines::Entity::find()
+        .filter(entity::resources_baselines::Column::BaselineId.eq(baseline_id))
+        // Select columns from the primary table (resources_baselines)
+        .column(entity::resources_baselines::Column::BaselineId)
+        .column(entity::resources_baselines::Column::ResourceId)
+        .column(entity::resources_baselines::Column::TaskId)
+        .column(entity::resources_baselines::Column::CapacityAllocated)
+        // Add other columns from resources_baselines as needed
+        // .column(entity::resources_baselines::Column::AllocationPercentage)
+        // Select and alias columns from joined tables
+        .column_as(entity::resources::Column::Name, "resource_name")
+        .column_as(entity::tasks::Column::Summary, "task_summary")
+        // Perform the joins
+        .left_join(entity::resources::Entity)
+        .left_join(entity::tasks::Entity)
+        // Map the results into our custom struct
+        .into_model::<ResourceAllocationDetails>()
+        .all(&db)
+        .await
+        .map_err(|db_err| {
+            // Log the actual database error
+            error!("Database error fetching resource allocations: {}", db_err);
+            MyError::DatabaseError // Return the generic error type
+        })?;
+
+    // Return the results as JSON
+    Ok(Json(json!(resource_allocations)))
 }

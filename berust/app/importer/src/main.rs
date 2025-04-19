@@ -13,6 +13,7 @@ async fn main() {
     });
 
     let db = Database::connect(db_connection_string).await.unwrap();
-    import_tasks(db.clone()).await.unwrap();
-    import_resources(db.clone()).await.unwrap();
+    import_project_plan(db.clone()).await.unwrap();
+
+    todo!("Import reports");
 }

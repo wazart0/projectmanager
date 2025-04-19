@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+
 // use tracing::*;
 // use log::info;
 // use serde_json;
@@ -163,7 +164,7 @@ fn sync_scroll(component: GanttComponent) {
     }
 }
 
-fn get_task_cell_value(task: &common::models::Task, column: &str) -> String {
+fn get_task_cell_value(task: &communication::models::Task, column: &str) -> String {
     match column {
         "id" => task.id.to_string(),
         "wbs" => task.wbs.clone(),
@@ -201,9 +202,9 @@ fn get_task_cell_value(task: &common::models::Task, column: &str) -> String {
 }
 
 fn get_resource_cell_value(
-    resource: &common::models::Resource,
+    resource: &communication::resources::Resource,
     column: &str,
-    resource_types: &[common::models::ResourceType],
+    resource_types: &[communication::resources::ResourceType],
 ) -> String {
     match column {
         "resource_id" => resource.resource_id.to_string(),
@@ -256,7 +257,8 @@ fn get_resource_cell_value(
 #[derive(Debug, PartialEq)]
 enum View {
     Gantt,
-    Resources,
+    ResourcesList,
+    ResourcesAllocation,
     Reporting,
     Reports,
     Settings,
@@ -266,23 +268,11 @@ enum View {
 fn Project() -> Element {
     let mut view = use_signal(|| View::Gantt);
     let mut signal_tasks = use_signal(Vec::new);
-    let mut signal_resources: Signal<Vec<common::models::Resource>> = use_signal(Vec::new);
-    let mut signal_resource_types: Signal<Vec<common::models::ResourceType>> = use_signal(Vec::new);
+    let mut signal_resources: Signal<Vec<communication::resources::Resource>> =
+        use_signal(Vec::new);
+    let mut signal_resource_types: Signal<Vec<communication::resources::ResourceType>> =
+        use_signal(Vec::new);
     let mut splitter_position = use_signal(|| 50.);
-
-    use_future(move || async move {
-        signal_tasks.set(
-            bitcode::decode(
-                &reqwest::get("http://localhost:22004/tasks")
-                    .await
-                    .unwrap()
-                    .bytes()
-                    .await
-                    .unwrap(),
-            )
-            .unwrap(),
-        );
-    });
 
     let fetch_tasks = move |_| async move {
         view.set(View::Gantt);
@@ -303,17 +293,37 @@ fn Project() -> Element {
         let (resources, resource_types) = bitcode::decode(
             &reqwest::get("http://localhost:22004/resources")
                 .await
-                .unwrap()
+                .unwrap_or_else(|e| {
+                    panic!("Failed to fetch resources: {}", e);
+                })
                 .bytes()
                 .await
-                .unwrap(),
+                .unwrap_or_else(|e| {
+                    panic!("Failed to fetch resources: {}", e);
+                }),
         )
-        .unwrap();
+        .unwrap_or_else(|e| {
+            panic!("Failed to decode resources: {}", e);
+        });
 
-        view.set(View::Resources);
+        view.set(View::ResourcesList);
         signal_resources.set(resources);
         signal_resource_types.set(resource_types);
     };
+
+    use_future(move || async move {
+        signal_tasks.set(
+            bitcode::decode(
+                &reqwest::get("http://localhost:22004/tasks")
+                    .await
+                    .unwrap()
+                    .bytes()
+                    .await
+                    .unwrap(),
+            )
+            .unwrap(),
+        );
+    });
 
     rsx! {
         div { id: "project",
@@ -336,6 +346,14 @@ fn Project() -> Element {
                     "Settings"
                 }
                 span { " | " }
+                if *view.read() == View::ResourcesList || *view.read() == View::ResourcesAllocation {
+                    button { class: "button", onclick: fetch_resources, "List" }
+                    button {
+                        class: "button",
+                        onclick: move |_| view.set(View::ResourcesAllocation),
+                        "Allocation"
+                    }
+                }
                 if *view.read() == View::Gantt {
                     button {
                         class: "button",
@@ -357,15 +375,16 @@ fn Project() -> Element {
                 }
             }
 
-            if *view.read() == View::Resources {
-                div { id: "resources", class: "table",
-
-                    for (row , resource) in signal_resources.read().clone().into_iter().enumerate() {
-                        for (column_index , column) in common::models::RESOURCE_COLUMNS.iter().enumerate() {
-                            div {
-                                class: "item",
-                                style: "grid-row: {(row+1).to_string()}; grid-column: {(column_index+1).to_string()};",
-                                "{get_resource_cell_value(&resource, column, &signal_resource_types.read())}"
+            if *view.read() == View::ResourcesList {
+                div { id: "full_view", style: "",
+                    div { id: "resources", class: "table",
+                        for (row , resource) in signal_resources.read().clone().into_iter().enumerate() {
+                            for (column_index , column) in communication::resources::Resource::fields().iter().enumerate() {
+                                div {
+                                    class: "item",
+                                    style: "grid-row: {(row+1).to_string()}; grid-column: {(column_index+1).to_string()};",
+                                    "{get_resource_cell_value(&resource, column, &signal_resource_types.read())}"
+                                }
                             }
                         }
                     }
@@ -385,7 +404,7 @@ fn Project() -> Element {
                     div { class: "table",
 
                         for (row , task) in signal_tasks.read().clone().into_iter().enumerate() {
-                            for (column_index , column) in common::models::COLUMNS.iter().enumerate() {
+                            for (column_index , column) in communication::models::COLUMNS.iter().enumerate() {
                                 div {
                                     class: "item",
                                     style: "grid-row: {(row+1).to_string()}; grid-column: {(column_index+1).to_string()};",

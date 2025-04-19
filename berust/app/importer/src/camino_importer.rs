@@ -1,11 +1,13 @@
 use chrono::Months;
 use polars::prelude::*;
+use sea_orm::QueryFilter;
 use sea_orm::entity::*;
 use sea_orm::{ActiveValue::Set, DatabaseConnection, EntityTrait, TransactionTrait};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use spreadsheet_ods::*;
 use std::fs::read_to_string;
 use tracing::*;
+
 const APP_PATH: &str = "/app";
 const PROJECT_INFO: &str = "/app/local/tmp/project_info.json";
 const LIST_OF_TASKS: &str = "/app/local/tmp/list_of_tasks.json";
@@ -71,27 +73,44 @@ struct TaskInput {
     planned_other_cost_eur: Option<u32>,
 }
 
-// pub struct TaskImported {
-//     id: i32,
-//     name: String,
-//     wbs: String,
-//     parent: Option<i32>,
-//     begin_month: Option<i32>,
-//     end_month: Option<i32>,
-//     planned_work_pm: Option<i32>,
-//     planned_team_cost_eur: Option<i32>,
-//     planned_other_cost_eur: Option<i32>,
-// }
+#[derive(Debug, Serialize, Deserialize)]
+struct ResourceInput {
+    task: String,
+    name: String,
+    description: Option<String>,
+    resource_type_id: String,
+    cost: f64,
+    cost_currency: String,
+    billing_frequency: String,
+    capacity: Option<f64>,
+    capacity_unit: Option<String>,
+}
 
-pub async fn import_tasks(db: DatabaseConnection) -> Result<(), String> {
+pub async fn import_project_plan(db: DatabaseConnection) -> Result<(), String> {
+    let baseline_id = entity::config::Entity::find()
+        .filter(entity::config::Column::ConfigKey.eq("baseline_id_default"))
+        .one(&db) // Use .one() as we expect a single result for the key
+        .await
+        .map_err(|e| format!("Database error finding baseline_id: {e}"))? // Handle potential DB error
+        .ok_or_else(|| "Baseline ID 'baseline_id_default' not found".to_string())? // Handle case where key doesn't exist
+        .config_value
+        .ok_or_else(|| "Baseline ID 'baseline_id_default' has a NULL value".to_string())?
+        .parse::<i64>()
+        .map_err(|e| format!("Failed to parse baseline_id: {e}"))?; // Handle case where value is NULL
+
+    let project_info = read_json_file::<ProjectInfo>(PROJECT_INFO)?;
+    let tasks = read_json_file::<Vec<TaskInput>>(LIST_OF_TASKS)?;
+    let mut resources = read_json_file::<Vec<ResourceInput>>(RESOURCES)?;
+
+    for resource in resources.iter_mut() {
+        resource.description = Some(format!("{} {}", resource.name, resource.task));
+    }
+
     // Start a transaction
     let txn = db
         .begin()
         .await
         .map_err(|e| format!("Failed to start transaction: {e}"))?;
-
-    let project_info = read_json_file::<ProjectInfo>(PROJECT_INFO)?;
-    let tasks = read_json_file::<Vec<TaskInput>>(LIST_OF_TASKS)?;
 
     let tasks_inserted = entity::tasks::Entity::insert_many(
         tasks
@@ -117,6 +136,7 @@ pub async fn import_tasks(db: DatabaseConnection) -> Result<(), String> {
                         .map(|t| t.task_id)
                         .unwrap_or_else(|| panic!("Task {} not found", task.name))
                 }),
+                baseline_id: Set(baseline_id),
                 wbs: Set(task.wbs.clone()),
                 start_timezone: Set(project_info.timezone.clone()),
                 finish_timezone: Set(project_info.timezone.clone()),
@@ -162,29 +182,6 @@ pub async fn import_tasks(db: DatabaseConnection) -> Result<(), String> {
     .await
     .unwrap_or_else(|e| panic!("Failed to insert tasks baselines: {e}"));
 
-    // Commit the transaction
-    txn.commit()
-        .await
-        .map_err(|e| format!("Failed to commit transaction: {e}"))?;
-
-    Ok(())
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct ResourceInput {
-    task: String,
-    name: String,
-    resource_type_id: String,
-    cost: f64,
-    cost_currency: String,
-    billing_frequency: String,
-    capacity: Option<i32>,
-    capacity_unit: Option<String>,
-}
-
-pub async fn import_resources(db: DatabaseConnection) -> Result<(), String> {
-    let resources = read_json_file::<Vec<ResourceInput>>(RESOURCES)?;
-
     let resource_types = entity::resource_types::Entity::find()
         .all(&db)
         .await
@@ -195,11 +192,12 @@ pub async fn import_resources(db: DatabaseConnection) -> Result<(), String> {
 
     debug!("Resource types: {:?}", resource_types);
 
-    entity::resources::Entity::insert_many(
+    let resources_inserted = entity::resources::Entity::insert_many(
         resources
             .iter()
             .map(|resource| entity::resources::ActiveModel {
                 name: Set(resource.name.clone()),
+                description: Set(resource.description.clone()),
                 resource_type_id: Set(*resource_types.get(&resource.resource_type_id).unwrap()),
                 cost: Set(Some(resource.cost)),
                 cost_currency: Set(resource.cost_currency.clone()),
@@ -209,9 +207,38 @@ pub async fn import_resources(db: DatabaseConnection) -> Result<(), String> {
             })
             .collect::<Vec<entity::resources::ActiveModel>>(),
     )
-    .exec(&db) // Use the transaction
+    .exec_with_returning_many(&txn) // Use the transaction
     .await
     .unwrap_or_else(|e| panic!("Failed to insert resources: {e}"));
+
+    entity::resources_baselines::Entity::insert_many(
+        resources
+            .iter()
+            .map(|resource| entity::resources_baselines::ActiveModel {
+                resource_id: Set(resources_inserted
+                    .iter()
+                    .find(|r| r.description == resource.description) // TODO: bug as hell fix this
+                    .map(|r| r.resource_id)
+                    .unwrap_or_else(|| panic!("Resource {} not found", resource.name))),
+                baseline_id: Set(baseline_id),
+                task_id: Set(tasks_inserted
+                    .iter()
+                    .find(|t| t.summary == resource.task)
+                    .map(|t| t.task_id)
+                    .unwrap_or_else(|| panic!("Task {} not found", resource.task))),
+                capacity_allocated: Set(resource.capacity),
+                ..Default::default()
+            })
+            .collect::<Vec<entity::resources_baselines::ActiveModel>>(),
+    )
+    .exec(&txn) // Use the transaction
+    .await
+    .unwrap_or_else(|e| panic!("Failed to insert resources baselines: {e}"));
+
+    // Commit the transaction
+    txn.commit()
+        .await
+        .map_err(|e| format!("Failed to commit transaction: {e}"))?;
 
     Ok(())
 }
