@@ -196,7 +196,7 @@ pub async fn import_project_plan(db: DatabaseConnection) -> Result<(), String> {
         resources
             .iter()
             .map(|resource| entity::resources::ActiveModel {
-                name: Set(resource.name.clone()),
+                summary: Set(resource.name.clone()),
                 description: Set(resource.description.clone()),
                 resource_type_id: Set(*resource_types.get(&resource.resource_type_id).unwrap()),
                 cost: Set(Some(resource.cost)),

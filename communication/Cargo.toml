@@ -7,10 +7,11 @@ edition = "2024"
 serde = { version = "1.0.219", features = ["derive"] }
 bitcode = "0.6.5"
 struct-field-names-as-array = "0.3.0"
+sea-orm = { version = "1.1", features = ["runtime-tokio-rustls", "sqlx-postgres"], optional = true }
 
 [lib]
 name = "communication"
 path = "src/lib.rs"
 
-
-
+[features]
+pmbe = ["sea-orm"]

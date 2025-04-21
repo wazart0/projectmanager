@@ -254,6 +254,39 @@ fn get_resource_cell_value(
     }
 }
 
+fn get_resource_allocation_cell_value(
+    resource_allocation: &communication::baselines::ResourceAllocation,
+    column: &str,
+) -> String {
+    match column {
+        "resource_baseline_id" => resource_allocation.resource_baseline_id.to_string(),
+        "baseline_id" => resource_allocation.baseline_id.to_string(),
+        "resource_id" => resource_allocation.resource_id.to_string(),
+        "task_id" => resource_allocation.task_id.to_string(),
+        "resource_summary" => match &resource_allocation.resource_summary {
+            Some(resource_summary) => resource_summary.clone(),
+            None => "".to_string(),
+        },
+        "task_summary" => match &resource_allocation.task_summary {
+            Some(task_summary) => task_summary.clone(),
+            None => "".to_string(),
+        },
+        "capacity_allocated" => match &resource_allocation.capacity_allocated {
+            Some(capacity_allocated) => capacity_allocated.to_string(),
+            None => "".to_string(),
+        },
+        "capacity" => match &resource_allocation.capacity {
+            Some(capacity) => capacity.to_string(),
+            None => "".to_string(),
+        },
+        "capacity_unit" => match &resource_allocation.capacity_unit {
+            Some(capacity_unit) => capacity_unit.clone(),
+            None => "".to_string(),
+        },
+        _ => panic!("Invalid column: {}", column),
+    }
+}
+
 #[derive(Debug, PartialEq)]
 enum View {
     Gantt,
@@ -271,6 +304,8 @@ fn Project() -> Element {
     let mut signal_resources: Signal<Vec<communication::resources::Resource>> =
         use_signal(Vec::new);
     let mut signal_resource_types: Signal<Vec<communication::resources::ResourceType>> =
+        use_signal(Vec::new);
+    let mut signal_resource_allocations: Signal<Vec<communication::baselines::ResourceAllocation>> =
         use_signal(Vec::new);
     let mut splitter_position = use_signal(|| 50.);
 
@@ -311,6 +346,27 @@ fn Project() -> Element {
         signal_resource_types.set(resource_types);
     };
 
+    let fetch_resource_allocations = move |_| async move {
+        let resource_allocations = bitcode::decode(
+            &reqwest::get("http://localhost:22004/resources/allocation?baseline_id=1")
+                .await
+                .unwrap_or_else(|e| {
+                    panic!("Failed to fetch resource allocations: {}", e);
+                })
+                .bytes()
+                .await
+                .unwrap_or_else(|e| {
+                    panic!("Failed to fetch resource allocations: {}", e);
+                }),
+        )
+        .unwrap_or_else(|e| {
+            panic!("Failed to decode resource allocations: {}", e);
+        });
+
+        view.set(View::ResourcesAllocation);
+        signal_resource_allocations.set(resource_allocations);
+    };
+
     use_future(move || async move {
         signal_tasks.set(
             bitcode::decode(
@@ -348,11 +404,7 @@ fn Project() -> Element {
                 span { " | " }
                 if *view.read() == View::ResourcesList || *view.read() == View::ResourcesAllocation {
                     button { class: "button", onclick: fetch_resources, "List" }
-                    button {
-                        class: "button",
-                        onclick: move |_| view.set(View::ResourcesAllocation),
-                        "Allocation"
-                    }
+                    button { class: "button", onclick: fetch_resource_allocations, "Allocation" }
                 }
                 if *view.read() == View::Gantt {
                     button {
@@ -390,6 +442,24 @@ fn Project() -> Element {
                     }
                 }
             }
+
+
+            if *view.read() == View::ResourcesAllocation {
+                div { id: "full_view", style: "",
+                    div { id: "resources_allocations", class: "table",
+                        for (row , resource_allocation) in signal_resource_allocations.read().clone().into_iter().enumerate() {
+                            for (column_index , column) in communication::baselines::ResourceAllocation::fields().iter().enumerate() {
+                                div {
+                                    class: "item",
+                                    style: "grid-row: {(row+1).to_string()}; grid-column: {(column_index+1).to_string()};",
+                                    "{get_resource_allocation_cell_value(&resource_allocation, column)}"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
 
 
             if *view.read() == View::Gantt {

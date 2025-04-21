@@ -982,6 +982,7 @@ name = "communication"
 version = "0.1.0"
 dependencies = [
  "bitcode",
+ "sea-orm",
  "serde",
  "struct-field-names-as-array",
 ]

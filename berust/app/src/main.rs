@@ -6,10 +6,9 @@ use actix_web::{
 
 use migration::{Migrator, MigratorTrait};
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, Database, DatabaseConnection, EntityTrait, FromQueryResult,
-    QueryFilter, QuerySelect, Statement,
+    ColumnTrait, ConnectionTrait, Database, DatabaseConnection, EntityTrait, QueryFilter,
+    QuerySelect, Statement,
 };
-use serde::Serialize;
 use serde_json::json;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter, Result as FmtResult};
@@ -211,7 +210,7 @@ impl IntoModelResource for entity::resources::Model {
     fn into_model_resource(self) -> communication::resources::Resource {
         communication::resources::Resource {
             resource_id: self.resource_id,
-            name: self.name,
+            name: self.summary,
             resource_type_id: self.resource_type_id,
             description: self.description,
             comment: self.comment,
@@ -273,15 +272,8 @@ async fn get_resources(db: web::Data<DatabaseConnection>) -> Result<HttpResponse
         .body(encoded))
 }
 
-#[derive(FromQueryResult, Debug, Serialize)]
-struct ResourceAllocationDetails {
-    baseline_id: i64,
-    resource_id: i64,
-    task_id: i64,
-    capacity_allocated: Option<f64>,
-    resource_name: Option<String>,
-    task_summary: Option<String>,
-}
+// #[derive(FromQueryResult, Debug)]
+// struct ResourceAllocationORM(communication::baselines::ResourceAllocation);
 
 async fn get_resource_allocation(
     db: web::Data<DatabaseConnection>,
@@ -299,15 +291,13 @@ async fn get_resource_allocation(
 
     let resource_allocations = entity::resources_baselines::Entity::find()
         .filter(entity::resources_baselines::Column::BaselineId.eq(baseline_id))
-        .column(entity::resources_baselines::Column::BaselineId)
-        .column(entity::resources_baselines::Column::ResourceId)
-        .column(entity::resources_baselines::Column::TaskId)
-        .column(entity::resources_baselines::Column::CapacityAllocated)
-        .column_as(entity::resources::Column::Name, "resource_name")
+        .column_as(entity::resources::Column::Summary, "resource_summary")
         .column_as(entity::tasks::Column::Summary, "task_summary")
+        .column_as(entity::resources::Column::Capacity, "capacity")
+        .column_as(entity::resources::Column::CapacityUnit, "capacity_unit")
         .left_join(entity::resources::Entity)
         .left_join(entity::tasks::Entity)
-        .into_model::<ResourceAllocationDetails>()
+        .into_model::<communication::baselines::ResourceAllocation>()
         .all(db.get_ref())
         .await
         .map_err(|db_err| {
@@ -315,5 +305,8 @@ async fn get_resource_allocation(
             MyError::DatabaseError
         })?;
 
-    Ok(HttpResponse::Ok().json(resource_allocations))
+    let encoded = bitcode::encode(&resource_allocations);
+    Ok(HttpResponse::Ok()
+        .content_type("application/octet-stream")
+        .body(encoded))
 }

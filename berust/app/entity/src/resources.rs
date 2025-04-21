@@ -26,7 +26,7 @@ pub enum Frequency {
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub resource_id: i64,
-    pub name: String,
+    pub summary: String,
     pub resource_type_id: i64,
     pub description: Option<String>,
     pub comment: Option<String>,

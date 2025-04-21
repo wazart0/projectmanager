@@ -24,7 +24,7 @@ chrono-tz = "0.10.3"
 
 entity = { path = "entity" }
 migration = { path = "migration" }
-communication = { path = "../../communication" }
+communication = { path = "../../communication", features = ["pmbe"] }
 
 [features]
 pmbe = []
