@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use struct_field_names_as_array::FieldNamesAsArray;
 
 #[derive(
@@ -53,24 +54,34 @@ impl ResourceAllocation {
     }
 }
 
-// #[cfg(feature = "pmbe")]
-// pub mod pmbe_impl {
-//     use super::ResourceAllocation;
-//     use sea_orm::{DbErr, FromQueryResult, QueryResult};
+#[derive(
+    // bitcode::Encode,
+    // bitcode::Decode,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    PartialEq,
+    Debug,
+    FieldNamesAsArray,
+)]
+#[cfg_attr(feature = "pmbe", derive(sea_orm::FromQueryResult))]
+pub struct TaskBaseline {
+    pub task_baseline_id: i64,
+    pub task_id: i64,
+    pub baseline_id: i64,
+    pub task_summary: String,
+    pub task_description: Option<String>,
+    pub task_comment: Option<String>,
+    pub wbs: String,
+    pub parent: Option<i64>,
+    pub start: NaiveDateTime,
+    pub start_timezone: String,
+    pub finish: NaiveDateTime,
+    pub finish_timezone: String,
+}
 
-//     impl FromQueryResult for ResourceAllocation {
-//         fn from_query_result(res: &QueryResult, pre: &str) -> Result<Self, DbErr> {
-//             Ok(Self {
-//                 resource_baseline_id: res.try_get(pre, "resource_baseline_id")?,
-//                 baseline_id: res.try_get(pre, "baseline_id")?,
-//                 resource_id: res.try_get(pre, "resource_id")?,
-//                 task_id: res.try_get(pre, "task_id")?,
-//                 capacity_allocated: res.try_get(pre, "capacity_allocated")?,
-//                 resource_summary: res.try_get(pre, "resource_summary")?,
-//                 task_summary: res.try_get(pre, "task_summary")?,
-//                 capacity: res.try_get(pre, "capacity")?,
-//                 capacity_unit: res.try_get(pre, "capacity_unit")?,
-//             })
-//         }
-//     }
-// }
+impl TaskBaseline {
+    pub fn fields() -> [&'static str; 12] {
+        TaskBaseline::FIELD_NAMES_AS_ARRAY
+    }
+}

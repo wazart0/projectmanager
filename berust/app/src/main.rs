@@ -12,7 +12,6 @@ use sea_orm::{
 use serde_json::json;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter, Result as FmtResult};
-use std::fs;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tracing::{error, info, warn};
 
@@ -134,17 +133,23 @@ async fn health_check(db: web::Data<DatabaseConnection>) -> impl Responder {
 
 #[derive(Debug)]
 enum MyError {
-    FileDoesntExists,
     JsonParserError,
     DatabaseError,
+    MissingQueryParameter(String),
+    InvalidQueryParameter(String),
 }
 
 impl Display for MyError {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
-            MyError::FileDoesntExists => write!(f, "Server error: File doesn't exists"),
             MyError::JsonParserError => write!(f, "Server error: Json parser error"),
             MyError::DatabaseError => write!(f, "Server error: Database operation failed"),
+            MyError::MissingQueryParameter(param) => {
+                write!(f, "Server error: Missing query parameter: {}", param)
+            }
+            MyError::InvalidQueryParameter(param) => {
+                write!(f, "Server error: Invalid query parameter: {}", param)
+            }
         }
     }
 }
@@ -160,28 +165,35 @@ impl ResponseError for MyError {
     }
 }
 
-const LIST_OF_TASKS_PATH: &str = "/app/local/tmp/list_of_tasks.json";
+async fn get_list_of_tasks(
+    db: web::Data<DatabaseConnection>,
+    query: web::Query<HashMap<String, String>>,
+) -> Result<HttpResponse, MyError> {
+    let baseline_id_str = query.get("baseline_id").ok_or_else(|| {
+        warn!("Missing 'baseline_id' query parameter");
+        MyError::MissingQueryParameter("baseline_id".to_string())
+    })?;
 
-async fn get_list_of_tasks() -> Result<HttpResponse, MyError> {
-    let data = match fs::read_to_string(LIST_OF_TASKS_PATH) {
-        Ok(data) => data,
-        Err(_) => {
-            tracing::error!("File doesn't exists");
-            return Err(MyError::FileDoesntExists);
-        }
-    };
-    match serde_json::from_str::<Vec<communication::models::Task>>(&data) {
-        Ok(tasks) => {
-            let encoded = bitcode::encode(&tasks);
-            Ok(HttpResponse::Ok()
-                .content_type("application/octet-stream")
-                .body(encoded))
-        }
-        Err(_) => {
-            tracing::error!("Json parser error");
-            Err(MyError::JsonParserError)
-        }
-    }
+    let baseline_id: i64 = baseline_id_str.parse().map_err(|e| {
+        warn!("Invalid 'baseline_id' format: {}", e);
+        MyError::InvalidQueryParameter("baseline_id".to_string())
+    })?;
+
+    let task_baselines = entity::tasks_baselines::Entity::find()
+        .filter(entity::tasks_baselines::Column::BaselineId.eq(baseline_id))
+        .column_as(entity::tasks::Column::Summary, "task_summary")
+        .column_as(entity::tasks::Column::Description, "task_description")
+        .column_as(entity::tasks::Column::Comment, "task_comment")
+        .left_join(entity::tasks::Entity)
+        .into_model::<communication::baselines::TaskBaseline>()
+        .all(db.get_ref())
+        .await
+        .map_err(|db_err| {
+            error!("Database error fetching task baselines: {}", db_err);
+            MyError::DatabaseError
+        })?;
+
+    Ok(HttpResponse::Ok().json(json!(task_baselines)))
 }
 
 trait IntoModelFrequency {

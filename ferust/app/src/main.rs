@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use dioxus::prelude::*;
 
 // use tracing::*;
@@ -164,39 +165,29 @@ fn sync_scroll(component: GanttComponent) {
     }
 }
 
-fn get_task_cell_value(task: &communication::models::Task, column: &str) -> String {
+fn get_task_cell_value(task: &communication::baselines::TaskBaseline, column: &str) -> String {
     match column {
-        "id" => task.id.to_string(),
+        "task_baseline_id" => task.task_baseline_id.to_string(),
+        "baseline_id" => task.baseline_id.to_string(),
+        "task_id" => task.task_id.to_string(),
         "wbs" => task.wbs.clone(),
-        "name" => task.name.clone(),
-        "description" => match &task.description {
+        "task_summary" => task.task_summary.clone(),
+        "task_description" => match &task.task_description {
             Some(description) => description.clone(),
+            None => "".to_string(),
+        },
+        "task_comment" => match &task.task_comment {
+            Some(comment) => comment.clone(),
             None => "".to_string(),
         },
         "parent" => match task.parent {
             Some(parent) => parent.to_string(),
             None => "".to_string(),
         },
-        "begin_month" => match task.begin_month {
-            Some(begin_month) => begin_month.to_string(),
-            None => "".to_string(),
-        },
-        "end_month" => match task.end_month {
-            Some(end_month) => end_month.to_string(),
-            None => "".to_string(),
-        },
-        "planned_work_pm" => match task.planned_work_pm {
-            Some(planned_work_pm) => planned_work_pm.to_string(),
-            None => "".to_string(),
-        },
-        "planned_team_cost_eur" => match task.planned_team_cost_eur {
-            Some(planned_team_cost_eur) => planned_team_cost_eur.to_string(),
-            None => "".to_string(),
-        },
-        "planned_other_cost_eur" => match task.planned_other_cost_eur {
-            Some(planned_other_cost_eur) => planned_other_cost_eur.to_string(),
-            None => "".to_string(),
-        },
+        "start" => task.start.date().to_string(),
+        "start_timezone" => task.start_timezone.clone(),
+        "finish" => task.finish.date().to_string(),
+        "finish_timezone" => task.finish_timezone.clone(),
         _ => panic!("Invalid column: {}", column),
     }
 }
@@ -289,6 +280,7 @@ fn get_resource_allocation_cell_value(
 
 #[derive(Debug, PartialEq)]
 enum View {
+    Loading,
     Gantt,
     ResourcesList,
     ResourcesAllocation,
@@ -299,8 +291,9 @@ enum View {
 
 #[component]
 fn Project() -> Element {
-    let mut view = use_signal(|| View::Gantt);
-    let mut signal_tasks = use_signal(Vec::new);
+    let mut view = use_signal(|| View::Loading);
+    let mut signal_tasks: Signal<Vec<communication::baselines::TaskBaseline>> =
+        use_signal(Vec::new);
     let mut signal_resources: Signal<Vec<communication::resources::Resource>> =
         use_signal(Vec::new);
     let mut signal_resource_types: Signal<Vec<communication::resources::ResourceType>> =
@@ -308,20 +301,40 @@ fn Project() -> Element {
     let mut signal_resource_allocations: Signal<Vec<communication::baselines::ResourceAllocation>> =
         use_signal(Vec::new);
     let mut splitter_position = use_signal(|| 50.);
+    let mut project_start = use_signal(|| NaiveDateTime::MIN);
+    let mut project_finish = use_signal(|| NaiveDateTime::MAX);
 
     let fetch_tasks = move |_| async move {
-        view.set(View::Gantt);
         signal_tasks.set(
-            bitcode::decode(
-                &reqwest::get("http://localhost:22004/tasks")
+            serde_json::from_str(
+                &reqwest::get("http://localhost:22004/tasks?baseline_id=1")
                     .await
                     .unwrap()
-                    .bytes()
+                    .text()
                     .await
                     .unwrap(),
             )
             .unwrap(),
         );
+        project_start.set(
+            signal_tasks
+                .read()
+                .clone()
+                .into_iter()
+                .min_by_key(|task| task.start)
+                .unwrap()
+                .start,
+        );
+        project_finish.set(
+            signal_tasks
+                .read()
+                .clone()
+                .into_iter()
+                .max_by_key(|task| task.finish)
+                .unwrap()
+                .finish,
+        );
+        view.set(View::Gantt);
     };
 
     let fetch_resources = move |_| async move {
@@ -340,10 +353,9 @@ fn Project() -> Element {
         .unwrap_or_else(|e| {
             panic!("Failed to decode resources: {}", e);
         });
-
-        view.set(View::ResourcesList);
         signal_resources.set(resources);
         signal_resource_types.set(resource_types);
+        view.set(View::ResourcesList);
     };
 
     let fetch_resource_allocations = move |_| async move {
@@ -363,23 +375,52 @@ fn Project() -> Element {
             panic!("Failed to decode resource allocations: {}", e);
         });
 
-        view.set(View::ResourcesAllocation);
         signal_resource_allocations.set(resource_allocations);
+        view.set(View::ResourcesAllocation);
     };
 
     use_future(move || async move {
         signal_tasks.set(
-            bitcode::decode(
-                &reqwest::get("http://localhost:22004/tasks")
+            serde_json::from_str(
+                &reqwest::get("http://localhost:22004/tasks?baseline_id=1")
                     .await
                     .unwrap()
-                    .bytes()
+                    .text()
                     .await
                     .unwrap(),
             )
             .unwrap(),
         );
+        project_start.set(
+            signal_tasks
+                .read()
+                .clone()
+                .into_iter()
+                .min_by_key(|task| task.start)
+                .unwrap()
+                .start,
+        );
+        project_finish.set(
+            signal_tasks
+                .read()
+                .clone()
+                .into_iter()
+                .max_by_key(|task| task.finish)
+                .unwrap()
+                .finish,
+        );
+        view.set(View::Gantt);
     });
+
+    if *view.read() == View::Loading {
+        return rsx! {
+            div {
+                id: "loading",
+                style: "display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw;",
+                "Loading..."
+            }
+        };
+    }
 
     rsx! {
         div { id: "project",
@@ -474,7 +515,7 @@ fn Project() -> Element {
                     div { class: "table",
 
                         for (row , task) in signal_tasks.read().clone().into_iter().enumerate() {
-                            for (column_index , column) in communication::models::COLUMNS.iter().enumerate() {
+                            for (column_index , column) in communication::baselines::TaskBaseline::fields().iter().enumerate() {
                                 div {
                                     class: "item",
                                     style: "grid-row: {(row+1).to_string()}; grid-column: {(column_index+1).to_string()};",
@@ -500,22 +541,28 @@ fn Project() -> Element {
                         x => format!("left: {}vw; width: {}vw;", x + 0.2, 99.8 - x),
                     },
                     div { class: "gantt_chart",
-
                         for (row , task) in signal_tasks.read().clone().into_iter().enumerate() {
                             div {
                                 class: "item",
-                                style: "grid-row: {(row+1).to_string()};",
-                                width: "100rem",
-                                if task.begin_month.is_some() && task.end_month.is_some() {
-                                    div {
-                                        width: ((task.end_month.unwrap() - task.begin_month.unwrap()) * 100 / 29).to_string()
-                                            + "rem",
-                                        left: (task.begin_month.unwrap() * 100 / 29).to_string() + "rem",
-                                        style: "background-color: green; position: relative; height: 100%;
+                                style: "grid-row: {(row+1).to_string()}; width: 110rem;",
+                                div {
+                                    width: ((task.finish - task.start).num_seconds() as f64 * 100.
+                                        / (*project_finish.read() - *project_start.read()).num_seconds() as f64)
+                                        .to_string() + "rem",
+                                    left: (((task.start - *project_start.read()).num_seconds() as f64 * 100.
+                                        / (*project_finish.read() - *project_start.read()).num_seconds() as f64) + 5.)
+                                        .to_string() + "rem",
+                                    style: "background-color: green; position: relative; height: 100%;
                                         box-sizing: border-box; border-bottom: 0.2rem solid black; border-top: 0.2rem solid black;",
+                                    {
+                                        tracing::debug!(
+                                            "task: {}, start: {}, duration: {}", task.task_summary, (task.start - *
+                                            project_start.read()).num_seconds() as f64 * 100. / (* project_finish.read()
+                                            - * project_start.read()).num_seconds() as f64, (task.finish - task.start)
+                                            .num_seconds() as f64 * 100. / (* project_finish.read() - * project_start
+                                            .read()).num_seconds() as f64,
+                                        )
                                     }
-                                } else {
-                                    div { style: "position: relative; height: 100%;" }
                                 }
                                                         // div {
                             //     style: "position: relative; height: 100%; z-index: 10; left: 10rem",

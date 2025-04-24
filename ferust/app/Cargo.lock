@@ -52,6 +52,7 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "bitcode",
+ "chrono",
  "communication",
  "dioxus",
  "reqwest",
@@ -522,6 +523,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-link",
 ]
@@ -628,6 +630,7 @@ name = "communication"
 version = "0.1.0"
 dependencies = [
  "bitcode",
+ "chrono",
  "serde",
  "struct-field-names-as-array",
 ]
